@@ -13,16 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "Pty.h"
 #include <xci/widgets/TextTerminal.h>
 #include <xci/graphics/Window.h>
 #include <xci/util/file.h>
+#include <xci/util/log.h>
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
+#include <unistd.h>
+#include <cassert>
 
 using namespace xci::widgets;
 using namespace xci::graphics;
 using namespace xci::util;
+using namespace xci::util::log;
 
 int main()
 {
@@ -34,21 +39,30 @@ int main()
     if (!Theme::load_default_theme())
         return EXIT_FAILURE;
 
+    Pty pty;
+    if (!pty.open())
+        return EXIT_FAILURE;
+
+    pid_t pid = pty.fork();
+    if (pid == -1)
+        return EXIT_FAILURE;
+    if (pid == 0) {
+        // child
+        if (execlp("ls", "ls", "-la", "..", nullptr) == -1) {
+            log_error("execlp: {m}");
+            return(EXIT_FAILURE);
+        }
+        assert(!"not reached");
+    }
+
     const char* cmd = "ls -la ..";
 
     TextTerminal terminal;
     terminal.add_text(get_cwd() + "> " + cmd + "\n");
     terminal.set_color(TextTerminal::Color4bit::BrightYellow, TextTerminal::Color4bit::Blue);
 
-    FILE* f = popen(cmd, "r");
-    if (!f)
-        return EXIT_FAILURE;
-    std::string buf(256, 0);
-    size_t nread;
-    while ((nread = fread(&buf[0], 1, buf.size(), f)) > 0) {
-        terminal.add_text(buf.substr(0, nread));
-    }
-    pclose(f);
+    auto buffer = pty.read();
+    terminal.add_text(buffer);
 
     // Make the terminal fullscreen
     window.set_size_callback([&](View& v) {

@@ -8,5 +8,5 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(xcikit_DIR /usr/local/lib/cmake/xci)
 find_package(xcikit REQUIRED)
 
-add_executable(xciterm src/main.cpp)
+add_executable(xciterm src/main.cpp src/Pty.cpp)
 target_link_libraries(xciterm xci-widgets)
