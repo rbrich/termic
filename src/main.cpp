@@ -13,50 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "Shell.h"
-#include <xci/widgets/TextTerminal.h>
+#include "Terminal.h"
+#include <xci/widgets/Theme.h>
 #include <xci/graphics/Window.h>
 #include <xci/util/file.h>
-#include <xci/util/log.h>
 #include <cstdlib>
-#include <cstdio>
-#include <iostream>
-#include <unistd.h>
-#include <cassert>
 
 using namespace xci::widgets;
 using namespace xci::graphics;
-using namespace xci::util;
-using namespace xci::util::log;
 
 int main()
 {
     xci::util::chdir_to_share();
 
     Window& window = Window::default_window();
-    window.create({800, 600}, "XCI TextTerminal demo");
+    window.create({800, 600}, "XCI Term");
 
     if (!Theme::load_default_theme())
         return EXIT_FAILURE;
 
-    Shell shell(window);
-    if (!shell.start())
+    xci::Terminal terminal(window);
+    if (!terminal.start_shell())
         return EXIT_FAILURE;
-
-    TextTerminal terminal;
-    terminal.set_color(TextTerminal::Color4bit::BrightWhite, TextTerminal::Color4bit::Blue);
-    terminal.set_font_style(TextTerminal::FontStyle::Bold);
-
-    window.set_update_callback([&shell, &terminal]() {
-        if (shell.data_ready()) {
-            auto buffer = shell.read();
-            terminal.add_text(buffer);
-        }
-    });
-
-    window.set_char_callback([&shell](View&, const CharEvent&) {
-        shell.write("ls -la ..\n");
-    });
 
     // Make the terminal fullscreen
     window.set_size_callback([&](View& v) {

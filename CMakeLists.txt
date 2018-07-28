@@ -9,5 +9,9 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13.4")
 set(xcikit_DIR /usr/local/lib/cmake/xci)
 find_package(xcikit REQUIRED)
 
-add_executable(xciterm src/main.cpp src/Pty.cpp src/Shell.cpp src/Shell.h)
+add_executable(xciterm
+    src/main.cpp
+    src/Pty.cpp
+    src/Shell.cpp
+    src/Terminal.cpp)
 target_link_libraries(xciterm xci-widgets)
