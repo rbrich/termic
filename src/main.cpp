@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "Pty.h"
+#include "Shell.h"
 #include <xci/widgets/TextTerminal.h>
 #include <xci/graphics/Window.h>
 #include <xci/util/file.h>
@@ -39,30 +39,24 @@ int main()
     if (!Theme::load_default_theme())
         return EXIT_FAILURE;
 
-    Pty pty;
-    if (!pty.open())
+    Shell shell(window);
+    if (!shell.start())
         return EXIT_FAILURE;
-
-    pid_t pid = pty.fork();
-    if (pid == -1)
-        return EXIT_FAILURE;
-    if (pid == 0) {
-        // child
-        if (execlp("ls", "ls", "-la", "..", nullptr) == -1) {
-            log_error("execlp: {m}");
-            return(EXIT_FAILURE);
-        }
-        assert(!"not reached");
-    }
-
-    const char* cmd = "ls -la ..";
 
     TextTerminal terminal;
-    terminal.add_text(get_cwd() + "> " + cmd + "\n");
-    terminal.set_color(TextTerminal::Color4bit::BrightYellow, TextTerminal::Color4bit::Blue);
+    terminal.set_color(TextTerminal::Color4bit::BrightWhite, TextTerminal::Color4bit::Blue);
+    terminal.set_font_style(TextTerminal::FontStyle::Bold);
 
-    auto buffer = pty.read();
-    terminal.add_text(buffer);
+    window.set_update_callback([&shell, &terminal]() {
+        if (shell.data_ready()) {
+            auto buffer = shell.read();
+            terminal.add_text(buffer);
+        }
+    });
+
+    window.set_char_callback([&shell](View&, const CharEvent&) {
+        shell.write("ls -la ..\n");
+    });
 
     // Make the terminal fullscreen
     window.set_size_callback([&](View& v) {
@@ -72,7 +66,7 @@ int main()
     });
 
     Bind bind(window, terminal);
-    window.set_refresh_mode(RefreshMode::OnDemand);
+    window.set_refresh_mode(RefreshMode::OnEvent);
     window.display();
     return EXIT_SUCCESS;
 }

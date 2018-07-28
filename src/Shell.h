@@ -1,4 +1,4 @@
-// Pty.h created on 2018-07-27, part of XCI term
+// Shell.h created on 2018-07-28, part of XCI term
 // Copyright 2018 Radek Brich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,30 +13,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef XCITERM_PTY_H
-#define XCITERM_PTY_H
+#ifndef XCITERM_SHELL_H
+#define XCITERM_SHELL_H
 
-#include <string>
+#include "Pty.h"
+#include <xci/graphics/Window.h>
+#include <thread>
+#include <mutex>
 
 
-class Pty {
+class Shell {
 public:
-    ~Pty();
+    explicit Shell(const xci::graphics::Window &window) : m_window(window) {}
+    ~Shell();
 
-    bool open();
+    bool start();
 
-    // Returns -1 on error, PID >0 from parent, 0 from child
-    pid_t fork();
-
-    int poll();
+    bool data_ready() const;
     std::string read();
-    bool eof() const { return m_master == -1; }
 
-    void write(const std::string &data);
+    void write(const std::string& data);
 
 private:
-    int m_master = -1;
+    void thread_main();
+
+private:
+    const xci::graphics::Window& m_window;  // only for wakeup()
+    Pty m_pty;
+    pid_t m_pid = -1;
+    std::thread m_thread;
+    mutable std::mutex m_mutex;
+    std::string m_data;
 };
 
 
-#endif // XCITERM_PTY_H
+#endif // XCITERM_SHELL_H

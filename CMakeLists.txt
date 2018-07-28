@@ -4,9 +4,10 @@ project(xciterm CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13.4")
 
 set(xcikit_DIR /usr/local/lib/cmake/xci)
 find_package(xcikit REQUIRED)
 
-add_executable(xciterm src/main.cpp src/Pty.cpp)
+add_executable(xciterm src/main.cpp src/Pty.cpp src/Shell.cpp src/Shell.h)
 target_link_libraries(xciterm xci-widgets)

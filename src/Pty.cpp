@@ -21,13 +21,22 @@
 #include <fcntl.h>
 #include <cassert>
 #include <unistd.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 
 using namespace xci::util::log;
 
 
+Pty::~Pty()
+{
+    if (m_master != -1)
+        ::close(m_master);
+}
+
+
 bool Pty::open()
 {
-    m_master = posix_openpt(O_RDWR);
+    m_master = posix_openpt(O_RDWR | O_NONBLOCK);
     if (m_master == -1) {
         log_error("posix_openpt: {m}");
         return false;
@@ -121,6 +130,27 @@ pid_t Pty::fork()
 }
 
 
+int Pty::poll()
+{
+    pollfd pfd = {
+            m_master, // fd
+            POLLIN, // events
+            0,  // revents
+    };
+
+    int rc = ::poll(&pfd, 1, -1);
+    if (rc == -1) {
+        log_debug("poll: {m}");
+        return -1;
+    }
+    if (rc == 0) {
+        // timeout
+        return 0;
+    }
+    return pfd.revents;
+}
+
+
 std::string Pty::read()
 {
     std::string buffer(256, '\0');
@@ -129,10 +159,14 @@ std::string Pty::read()
         ssize_t nread = ::read(m_master, &buffer[offset],
                                buffer.size() - offset);
         if (nread == -1) {
-            log_error("read: {m}");
+            if (errno != EAGAIN)
+                log_error("read: {m}");
             break;
         }
         if (nread == 0) {
+            // EOF
+            ::close(m_master);
+            m_master = -1;
             break;
         }
         offset += nread;
@@ -140,4 +174,15 @@ std::string Pty::read()
     }
     buffer.resize(offset);
     return buffer;
+}
+
+
+void Pty::write(const std::string &data)
+{
+    ssize_t rc = ::write(m_master, data.data(), data.size());
+    if (rc == -1) {
+        log_error("write: {m}");
+        return;
+    }
+    assert(size_t(rc) == data.size());
 }
