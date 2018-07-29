@@ -51,6 +51,10 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
     switch (ev.key) {
         case Key::Enter: seq = "\n"; break;
         case Key::Backspace: seq = "\b"; break;
+        case Key::Up: seq = "\x1b[A"; break;
+        case Key::Down: seq = "\x1b[B"; break;
+        case Key::Right: seq = "\x1b[C"; break;
+        case Key::Left: seq = "\x1b[D"; break;
         default: return false;
     }
     m_shell.write(seq);
@@ -69,6 +73,12 @@ void Terminal::decode_input(const std::string &data)
 {
     using S = InputState;
     std::string text;
+    auto flush_text = [&text, this]() {
+        if (!text.empty()) {
+            add_text(text);
+            text.clear();
+        }
+    };
     for (char c : data) {
         switch (m_input_state) {
             case S::Normal:
@@ -77,17 +87,21 @@ void Terminal::decode_input(const std::string &data)
                         bell();
                         break;
                     case 8:   // BS
-                        // TODO: cursor back
+                        flush_text();
+                        set_cursor_pos(cursor_pos() - Vec2i{1, 0});
                         break;
                     case 9:   // HT
                         text += "   ";
                         break;
                     case 10:  // LF
-                        // TODO: cursor down / new line
-                        text += c;
+                        // cursor down / new line
+                        flush_text();
+                        set_cursor_pos(cursor_pos() + Vec2i{0, 1});
                         break;
                     case 13:  // CR
-                        // TODO: cursor to line beginning
+                        // cursor to line beginning
+                        flush_text();
+                        set_cursor_pos({0, cursor_pos().y});
                         break;
                     case 27:  // ESC
                         m_input_seq += c;
@@ -118,16 +132,45 @@ void Terminal::decode_input(const std::string &data)
                 m_input_seq += c;
                 if (isdigit(c) || c == ';')
                     break;
+                // Remove CSI at start and command char at the end
+                auto params = m_input_seq.substr(2, m_input_seq.size() - 3);
                 switch (c) {
-                    case 'm':  // SGR – Select Graphic Rendition
-                        if (!text.empty()) {
-                            add_text(text);
-                            text.clear();
+                    case 'm':  // SGR - Select Graphic Rendition
+                        flush_text();
+                        decode_sgr(params);
+                        break;
+                    case 'C':  // CUF - Cursor Forward
+                        if (params.empty()) {
+                            set_cursor_pos(cursor_pos() + Vec2i{1, 0});
+                        } else {
+                            log_debug("Unknown CUF param: {}", params);
+                        };
+                        break;
+                    case 'K':  // EL - Erase in Line
+                        flush_text();
+                        {
+                            int n = atoi(params.c_str());
+                            switch (n) {
+                                case 0:
+                                    // clear from cursor to the end of the line
+                                    current_line().erase(cursor_pos().x, size_in_cells().x);
+                                    break;
+                                case 1:
+                                    // clear from cursor to beginning of the line
+                                    current_line().erase(0, cursor_pos().x);
+                                    break;
+                                case 2:
+                                    // clear entire line
+                                    current_line().erase(0, size_in_cells().x);
+                                    break;
+                                default:
+                                    log_debug("Unknown EL param: {}", params);
+                                    break;
+                            }
                         }
-                        decode_sgr(m_input_seq);
                         break;
                     default:
-                        log_debug("Unknown seq: {}", m_input_seq);
+                        log_debug("Unknown seq: CSI {}", m_input_seq.substr(1));
                         break;
                 }
                 m_input_seq.clear();
@@ -135,18 +178,14 @@ void Terminal::decode_input(const std::string &data)
                 break;
         }
     }
-    if (!text.empty()) {
-        add_text(text);
-    }
+    flush_text();
 }
 
 
-void Terminal::decode_sgr(const std::string &sgr)
+void Terminal::decode_sgr(const std::string &params)
 {
-    // Remove CSI at start and 'm' at end
-    auto params = sgr.substr(2, sgr.size() - 3);
     std::istringstream params_stream(params);
-    log_debug("SGR {}", params);
+    //log_debug("SGR {}", params);
     do {
         int p = 0;
         params_stream >> p;
@@ -172,6 +211,12 @@ void Terminal::decode_sgr(const std::string &sgr)
             set_color(m_fg, m_bg);
         } else if (p == 49) {
             m_bg = c_bg_default;
+            set_color(m_fg, m_bg);
+        } else if (p >= 90 && p <= 97) {
+            m_fg = Color4bit(p - 90 + 8);
+            set_color(m_fg, m_bg);
+        } else if (p >= 100 && p <= 107) {
+            m_bg = Color4bit(p - 100 + 8);
             set_color(m_fg, m_bg);
         } else {
             log_debug("Unknown SGR {}", p);

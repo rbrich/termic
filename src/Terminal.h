@@ -38,7 +38,7 @@ public:
     void decode_input(const std::string& data);
 
 private:
-    void decode_sgr(const std::string& sgr);
+    void decode_sgr(const std::string& params);
 
 private:
     Shell m_shell;
