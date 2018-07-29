@@ -52,6 +52,14 @@ bool Pty::open()
         return false;
     }
 
+#ifdef __linux__
+    // Might be needed on Linux. Did not try yet.
+    if (fcntl(m_master, F_SETFL, O_NONBLOCK) == -1) {
+        log_error("fcntl: {m}");
+        return false;
+    }
+#endif
+
     log_info("Pty open: master {}", m_master);
     return true;
 }
@@ -165,6 +173,7 @@ std::string Pty::read()
         }
         if (nread == 0) {
             // EOF
+            log_error("Pty slave closed");
             ::close(m_master);
             m_master = -1;
             break;

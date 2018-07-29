@@ -28,7 +28,7 @@ public:
 
     bool start_shell();
 
-    void update() override;
+    void update(std::chrono::nanoseconds elapsed) override;
     bool key_event(graphics::View& view, const graphics::KeyEvent& ev) override;
     void char_event(graphics::View& view, const graphics::CharEvent& ev) override;
 
@@ -38,7 +38,23 @@ public:
     void decode_input(const std::string& data);
 
 private:
+    void decode_sgr(const std::string& sgr);
+
+private:
     Shell m_shell;
+
+    enum class InputState {
+        Normal,
+        Escape,
+        CSI,
+    };
+    InputState m_input_state = InputState::Normal;
+    std::string m_input_seq;
+
+    static constexpr Color4bit c_fg_default = Color4bit::White;
+    static constexpr Color4bit c_bg_default = Color4bit::Black;
+    Color4bit m_fg = c_fg_default;
+    Color4bit m_bg = Color4bit::Black;
 };
 
 } // namespace xci
