@@ -20,6 +20,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <pwd.h>
 
 using namespace std::chrono_literals;
 using namespace xci::util::log;
@@ -43,8 +44,9 @@ bool Shell::start()
         return false;
     if (pid == 0) {
         // child
-        ::setenv("TERM", "xterm", 1);
-        if (execlp("bash", "bash", nullptr) == -1) {
+        ::setenv("TERM", "ansi", 1);
+        auto* shell = getpwuid(getuid())->pw_shell;
+        if (execlp(shell, shell, nullptr) == -1) {
             log_error("execlp: {m}");
             _exit(-1);
         }
