@@ -126,6 +126,9 @@ void Terminal::decode_input(const std::string &data)
                 if (c == '[') {
                     m_input_state = S::CSI;
                     break;
+                } else if (c == ']') {
+                    m_input_state = S::OSC;
+                    break;
                 }
                 log_debug("Unknown seq: ESC {}", c);
                 text += m_input_seq;
@@ -133,7 +136,7 @@ void Terminal::decode_input(const std::string &data)
                 m_input_state = S::Normal;
                 break;
 
-            case S::CSI:
+            case S::CSI: {
                 m_input_seq += c;
                 if (c >= '0' && c <= '?') {
                     // continue reading parameters
@@ -198,6 +201,18 @@ void Terminal::decode_input(const std::string &data)
                         log_debug("Unknown seq: CSI {}", m_input_seq.substr(2));
                         break;
                 }
+                m_input_seq.clear();
+                m_input_state = S::Normal;
+                break;
+            }
+
+            case S::OSC:  // Operating System Command
+                m_input_seq += c;
+                if ((c >= '\x08' && c <= '\x0d') || (c >= ' ' && c <= '~')) {
+                    // continue reading OSC control string
+                    break;
+                }
+                log_debug("Unknown seq: OSC {} {}", m_input_seq.substr(2), int(c));
                 m_input_seq.clear();
                 m_input_state = S::Normal;
                 break;

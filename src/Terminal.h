@@ -48,6 +48,7 @@ private:
         Normal,
         Escape,
         CSI,
+        OSC,
     };
     InputState m_input_state = InputState::Normal;
     std::string m_input_seq;
