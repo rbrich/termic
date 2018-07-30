@@ -14,9 +14,11 @@
 // limitations under the License.
 
 #include "Terminal.h"
+#include "utility.h"
 #include <xci/util/log.h>
 #include <xci/util/string.h>
 #include <sstream>
+#include <cstdlib>
 
 namespace xci {
 
@@ -46,16 +48,19 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
 {
     if (ev.action == Action::Release)
         return false;
-    log_debug("Input key: {}", int(ev.key));
     std::string seq;
     switch (ev.key) {
         case Key::Enter: seq = "\n"; break;
         case Key::Backspace: seq = "\b"; break;
-        case Key::Up: seq = "\x1b[A"; break;
-        case Key::Down: seq = "\x1b[B"; break;
-        case Key::Right: seq = "\x1b[C"; break;
-        case Key::Left: seq = "\x1b[D"; break;
-        default: return false;
+        case Key::Up: seq = "\033[A"; break;
+        case Key::Down: seq = "\033[B"; break;
+        case Key::Right: seq = "\033[C"; break;
+        case Key::Left: seq = "\033[D"; break;
+        case Key::Home: seq = "\033[H"; break;
+        case Key::End: seq = "\033[F"; break;
+        default:
+            log_debug("Terminal::key_event: Unhandled key: {}", int(ev.key));
+            return false;
     }
     m_shell.write(seq);
     return true;
@@ -130,27 +135,36 @@ void Terminal::decode_input(const std::string &data)
 
             case S::CSI:
                 m_input_seq += c;
-                if (isdigit(c) || c == ';')
+                if (c >= '0' && c <= '?') {
+                    // continue reading parameters
                     break;
+                }
                 // Remove CSI at start and command char at the end
-                auto params = m_input_seq.substr(2, m_input_seq.size() - 3);
+                std::string_view params = m_input_seq;
+                params.remove_prefix(2);
+                params.remove_suffix(1);
+                TRACE("CSI {} {}", params, c);
                 switch (c) {
-                    case 'm':  // SGR - Select Graphic Rendition
+                    case 'm':  // SGR - select graphic rendition
                         flush_text();
                         decode_sgr(params);
                         break;
-                    case 'C':  // CUF - Cursor Forward
+                    case 'C':  // CUF - cursor forward
                         if (params.empty()) {
                             set_cursor_pos(cursor_pos() + Vec2i{1, 0});
                         } else {
                             log_debug("Unknown CUF param: {}", params);
                         };
                         break;
-                    case 'K':  // EL - Erase in Line
+                    case 'K':  // EL - erase in line
                         flush_text();
                         {
-                            int n = atoi(params.c_str());
-                            switch (n) {
+                            int p = 0;
+                            bool more = cseq_next_param(params, p);
+                            if (more) {
+                                log_debug("Ignored EL params: {}", params);
+                            }
+                            switch (p) {
                                 case 0:
                                     // clear from cursor to the end of the line
                                     current_line().erase(cursor_pos().x, size_in_cells().x);
@@ -169,8 +183,19 @@ void Terminal::decode_input(const std::string &data)
                             }
                         }
                         break;
+                    case 'P': {
+                        // DCH - delete character (CSI p P)
+                        int p = 1;  // default
+                        bool more = cseq_next_param(params, p);
+                        if (more) {
+                            log_debug("Ignored DCH params: {}", params);
+                        }
+                        flush_text();
+                        current_line().erase(cursor_pos().x, p);
+                        break;
+                    }
                     default:
-                        log_debug("Unknown seq: CSI {}", m_input_seq.substr(1));
+                        log_debug("Unknown seq: CSI {}", m_input_seq.substr(2));
                         break;
                 }
                 m_input_seq.clear();
@@ -182,13 +207,13 @@ void Terminal::decode_input(const std::string &data)
 }
 
 
-void Terminal::decode_sgr(const std::string &params)
+void Terminal::decode_sgr(std::string_view params)
 {
-    std::istringstream params_stream(params);
-    //log_debug("SGR {}", params);
-    do {
+    TRACE("params: {}", params);
+    bool more_params = true;
+    while (more_params) {
         int p = 0;
-        params_stream >> p;
+        more_params = cseq_next_param(params, p);
 
         if (p == 0) {
             // reset all attributes
@@ -221,12 +246,7 @@ void Terminal::decode_sgr(const std::string &params)
         } else {
             log_debug("Unknown SGR {}", p);
         }
-
-        // consume separator (;)
-        char sep = 0;
-        params_stream >> sep;
-        assert(sep == ';' || params_stream.eof());
-    } while (params_stream);
+    }
 }
 
 
