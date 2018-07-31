@@ -20,7 +20,9 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <cassert>
 #include <pwd.h>
+#include <sys/wait.h>
 
 using namespace std::chrono_literals;
 using namespace xci::util::log;
@@ -96,4 +98,11 @@ void Shell::thread_main()
             std::this_thread::yield();
         }
     }
+    int wstatus;
+    waitpid(m_pid, &wstatus, 0);
+    if (WIFEXITED(wstatus))
+        log_info("Shell exited: {}", WEXITSTATUS(wstatus));
+    if (WIFSIGNALED(wstatus))
+        log_warning("Shell killed: {}", WTERMSIG(wstatus));
+    m_window.close();
 }

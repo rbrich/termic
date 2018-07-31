@@ -48,20 +48,35 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
 {
     if (ev.action == Action::Release)
         return false;
+
     std::string seq;
-    switch (ev.key) {
-        case Key::Enter: seq = "\n"; break;
-        case Key::Backspace: seq = "\b"; break;
-        case Key::Up: seq = "\033[A"; break;
-        case Key::Down: seq = "\033[B"; break;
-        case Key::Right: seq = "\033[C"; break;
-        case Key::Left: seq = "\033[D"; break;
-        case Key::Home: seq = "\033[H"; break;
-        case Key::End: seq = "\033[F"; break;
-        default:
-            log_debug("Terminal::key_event: Unhandled key: {}", int(ev.key));
-            return false;
+
+    if (ev.mod == ModKey::None()) {
+        switch (ev.key) {
+            case Key::Enter: seq = "\n"; break;
+            case Key::Backspace: seq = "\b"; break;
+            case Key::Up: seq = "\033[A"; break;
+            case Key::Down: seq = "\033[B"; break;
+            case Key::Right: seq = "\033[C"; break;
+            case Key::Left: seq = "\033[D"; break;
+            case Key::Home: seq = "\033[H"; break;
+            case Key::End: seq = "\033[F"; break;
+            default:
+                log_debug("Terminal::key_event: Unhandled key: {}", int(ev.key));
+                return false;
+        }
     }
+
+    if (ev.mod == ModKey::Ctrl()) {
+        switch (ev.key) {
+            case Key::C: seq = '\3'; break;
+            case Key::D: seq = '\4'; break;
+            default:
+                log_debug("Terminal::key_event: Unhandled key: Ctrl + {}", int(ev.key));
+                return false;
+        }
+    }
+
     m_shell.write(seq);
     return true;
 }
@@ -113,7 +128,7 @@ void Terminal::decode_input(const std::string &data)
                         m_input_state = S::Escape;
                         break;
                     default:
-                        if (c < 32)
+                        if (c >= 0 && c < 32)
                             log_debug("Unknown cc: {}", int(c));
                         else
                             text += c;

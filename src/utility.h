@@ -16,7 +16,7 @@
 #ifndef XCITERM_UTILITY_H
 #define XCITERM_UTILITY_H
 
-#include <string_view>
+#include <xci/compat/string_view.h>
 
 namespace xci {
 
