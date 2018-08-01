@@ -68,12 +68,13 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
     }
 
     if (ev.mod == ModKey::Ctrl()) {
-        switch (ev.key) {
-            case Key::C: seq = '\3'; break;
-            case Key::D: seq = '\4'; break;
-            default:
-                log_debug("Terminal::key_event: Unhandled key: Ctrl + {}", int(ev.key));
-                return false;
+        // ^A .. ^Z, ^[, ^\, ^]
+        if (ev.key >= Key::A && ev.key <= Key::RightBracket) {
+            // '\1' .. '\x1d'
+            seq = char(int(ev.key) - int(Key::A) + 1);
+        } else {
+            log_debug("Terminal::key_event: Unhandled key: Ctrl + {}", int(ev.key));
+            return false;
         }
     }
 

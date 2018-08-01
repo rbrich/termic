@@ -46,7 +46,7 @@ bool Shell::start()
         return false;
     if (pid == 0) {
         // child
-        ::setenv("TERM", "ansi", 1);
+        ::setenv("TERM", "xterm", 1);
         auto* shell = getpwuid(getuid())->pw_shell;
         if (execlp(shell, shell, nullptr) == -1) {
             log_error("execlp: {m}");

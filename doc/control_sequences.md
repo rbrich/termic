@@ -9,3 +9,4 @@ This is documentation of control sequences recognized by XCI term.
 [xterm]: http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 [screen]: https://www.gnu.org/software/screen/manual/html_node/Control-Sequences.html
 [vttest]: http://invisible-island.net/vttest/vttest.html
+[c0c1]: https://en.wikipedia.org/wiki/C0_and_C1_control_codes
