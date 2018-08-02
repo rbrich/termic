@@ -30,7 +30,7 @@ using namespace xci::util::log;
 
 Shell::~Shell()
 {
-    ::kill(m_pid, SIGTERM);
+    ::kill(m_pid, SIGHUP);
     if (m_thread.joinable())
         m_thread.join();
 }

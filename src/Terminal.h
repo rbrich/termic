@@ -47,6 +47,7 @@ private:
     enum class InputState {
         Normal,
         Escape,
+        Escape_1,  // single argument escape sequences
         CSI,
         OSC,
     };

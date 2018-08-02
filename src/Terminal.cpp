@@ -54,6 +54,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
     if (ev.mod == ModKey::None()) {
         switch (ev.key) {
             case Key::Enter: seq = "\n"; break;
+            case Key::KeypadEnter: seq = "\n"; break;
             case Key::Backspace: seq = "\b"; break;
             case Key::Up: seq = "\033[A"; break;
             case Key::Down: seq = "\033[B"; break;
@@ -145,9 +146,18 @@ void Terminal::decode_input(const std::string &data)
                 } else if (c == ']') {
                     m_input_state = S::OSC;
                     break;
+                } else if (c == '(') {
+                    // ISO 2022 character set switching
+                    m_input_state = S::Escape_1;
+                    break;
                 }
                 log_debug("Unknown seq: ESC {}", c);
-                text += m_input_seq;
+                m_input_seq.clear();
+                m_input_state = S::Normal;
+                break;
+
+            case S::Escape_1:
+                log_debug("Unknown seq: ESC {} {}", m_input_seq.back(), c);
                 m_input_seq.clear();
                 m_input_state = S::Normal;
                 break;
