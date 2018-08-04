@@ -173,18 +173,54 @@ void Terminal::decode_input(const std::string &data)
                 params.remove_prefix(2);
                 params.remove_suffix(1);
                 TRACE("CSI {} {}", params, c);
+                if (!params.empty() && (
+                        (params.front() >= '\x3c' && params.front() <= '\x3f') ||
+                        (params.back() >= 'p' && params.back() <= '~'))) {
+                    // private use
+                    flush_text();
+                    decode_private(c, params);
+                }
                 switch (c) {
                     case 'm':  // SGR - select graphic rendition
                         flush_text();
                         decode_sgr(params);
                         break;
-                    case 'C':  // CUF - cursor forward
-                        if (params.empty()) {
-                            set_cursor_pos(cursor_pos() + Vec2i{1, 0});
-                        } else {
-                            log_debug("Unknown CUF param: {}", params);
-                        };
+                    case 'A': {  // CUU - cursor up
+                        int p = 1;
+                        bool more = cseq_next_param(params, p);
+                        if (more) {
+                            log_warning("Ignored CUU params: {}", params);
+                        }
+                        set_cursor_pos(cursor_pos() - Vec2i{0, p});
                         break;
+                    }
+                    case 'B': {  // CUD - cursor down
+                        int p = 1;
+                        bool more = cseq_next_param(params, p);
+                        if (more) {
+                            log_warning("Ignored CUD params: {}", params);
+                        }
+                        set_cursor_pos(cursor_pos() + Vec2i{0, p});
+                        break;
+                    }
+                    case 'C': {  // CUF - cursor right
+                        int p = 1;
+                        bool more = cseq_next_param(params, p);
+                        if (more) {
+                            log_warning("Ignored CUF params: {}", params);
+                        }
+                        set_cursor_pos(cursor_pos() + Vec2i{p, 0});
+                        break;
+                    }
+                    case 'D': {  // CUB - cursor left
+                        int p = 1;
+                        bool more = cseq_next_param(params, p);
+                        if (more) {
+                            log_warning("Ignored CUB params: {}", params);
+                        }
+                        set_cursor_pos(cursor_pos() - Vec2i{p, 0});
+                        break;
+                    }
                     case 'K':  // EL - erase in line
                         flush_text();
                         {
@@ -288,6 +324,19 @@ void Terminal::decode_sgr(std::string_view params)
             log_debug("Unknown SGR {}", p);
         }
     }
+}
+
+
+void Terminal::decode_private(char f, std::string_view params)
+{
+    if (params == "?2004" && (f == 'h' || f == 'l')) {
+        // bracketed paste mode
+        m_flags.bracketed_paste_mode = bool(f == 'h');
+        log_debug("Terminal: bracketed_paste_mode = {}",
+                  bool(m_flags.bracketed_paste_mode));
+        return;
+    }
+    log_debug("Unknown private seq {}", params);
 }
 
 

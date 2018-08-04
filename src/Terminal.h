@@ -40,6 +40,7 @@ public:
 private:
 
     void decode_sgr(std::string_view params);
+    void decode_private(char f, std::string_view params);
 
 private:
     Shell m_shell;
@@ -58,6 +59,11 @@ private:
     static constexpr Color4bit c_bg_default = Color4bit::Black;
     Color4bit m_fg = c_fg_default;
     Color4bit m_bg = Color4bit::Black;
+
+    // state
+    struct {
+        bool bracketed_paste_mode : 1;  // TODO
+    } m_flags = {};
 };
 
 } // namespace xci
