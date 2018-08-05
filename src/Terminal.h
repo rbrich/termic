@@ -57,8 +57,6 @@ private:
 
     static constexpr Color4bit c_fg_default = Color4bit::White;
     static constexpr Color4bit c_bg_default = Color4bit::Black;
-    Color4bit m_fg = c_fg_default;
-    Color4bit m_bg = Color4bit::Black;
 
     // state
     struct {

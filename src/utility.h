@@ -30,6 +30,9 @@ namespace xci {
 ///               False if this was the last one.
 bool cseq_next_param(std::string_view& params, int& p);
 
+void cseq_parse_params(const char* name, std::string_view& params, int& p1);
+void cseq_parse_params(const char* name, std::string_view& params, int& p1, int& p2);
+
 } // namespace xci
 
 #endif // XCITERM_UTILITY_H

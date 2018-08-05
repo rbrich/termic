@@ -14,9 +14,13 @@
 // limitations under the License.
 
 #include "utility.h"
+#include <xci/util/log.h>
 #include <cstdlib>
 
 namespace xci {
+
+using namespace xci::util::log;
+
 
 bool cseq_next_param(std::string_view& params, int& p)
 {
@@ -37,5 +41,20 @@ bool cseq_next_param(std::string_view& params, int& p)
     }
     return false;
 }
+
+
+void cseq_parse_params(const char *name, std::string_view &params, int &p1)
+{
+    if (cseq_next_param(params, p1))
+        log_warning("Excess params for {} ignored: {}", name, params);
+}
+
+
+void cseq_parse_params(const char *name, std::string_view &params, int &p1, int &p2)
+{
+    if (cseq_next_param(params, p1) && cseq_next_param(params, p2))
+        log_warning("Excess params for {} ignored: {}", name, params);
+}
+
 
 } // namespace xci

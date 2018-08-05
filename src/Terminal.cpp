@@ -56,12 +56,24 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             case Key::Enter: seq = "\n"; break;
             case Key::KeypadEnter: seq = "\n"; break;
             case Key::Backspace: seq = "\b"; break;
-            case Key::Up: seq = "\033[A"; break;
-            case Key::Down: seq = "\033[B"; break;
-            case Key::Right: seq = "\033[C"; break;
-            case Key::Left: seq = "\033[D"; break;
-            case Key::Home: seq = "\033[H"; break;
-            case Key::End: seq = "\033[F"; break;
+            case Key::Up: seq = "\033[A"; break;  // CSI A
+            case Key::Down: seq = "\033[B"; break;  // CSI B
+            case Key::Right: seq = "\033[C"; break;  // CSI C
+            case Key::Left: seq = "\033[D"; break;  // CSI D
+            case Key::Home: seq = "\033[H"; break;  // CSI H
+            case Key::End: seq = "\033[F"; break;  // CSI F
+            case Key::F1: seq = "\033OP"; break;  // SS3 P
+            case Key::F2: seq = "\033OQ"; break;  // SS3 Q
+            case Key::F3: seq = "\033OR"; break;  // SS3 R
+            case Key::F4: seq = "\033OS"; break;  // SS3 S
+            case Key::F5: seq = "\033[15~"; break;  // CSI 1 5 ~
+            case Key::F6: seq = "\033[17~"; break;  // CSI 1 7 ~
+            case Key::F7: seq = "\033[18~"; break;  // CSI 1 8 ~
+            case Key::F8: seq = "\033[19~"; break;  // CSI 1 9 ~
+            case Key::F9: seq = "\033[20~"; break;  // CSI 2 0 ~
+            case Key::F10: seq = "\033[21~"; break;  // CSI 2 1 ~
+            case Key::F11: seq = "\033[23~"; break;  // CSI 2 3 ~
+            case Key::F12: seq = "\033[24~"; break;  // CSI 2 4 ~
             default:
                 log_debug("Terminal::key_event: Unhandled key: {}", int(ev.key));
                 return false;
@@ -76,6 +88,18 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
         } else {
             log_debug("Terminal::key_event: Unhandled key: Ctrl + {}", int(ev.key));
             return false;
+        }
+    }
+
+    if (ev.mod == ModKey::Shift()) {
+        switch (ev.key) {
+            case Key::F10:
+                // Write contents of current line to stdout (debugging)
+                std::cout << escape(current_line().content()) << std::endl;
+                return true;
+            default:
+                log_debug("Terminal::key_event: Unhandled key: Shift + {}", int(ev.key));
+                return false;
         }
     }
 
@@ -156,12 +180,18 @@ void Terminal::decode_input(const std::string &data)
                 m_input_state = S::Normal;
                 break;
 
-            case S::Escape_1:
-                log_debug("Unknown seq: ESC {} {}", m_input_seq.back(), c);
+            case S::Escape_1: {
+                int prev = m_input_seq.back();
+                // ISO 2022 character set switching
+                if (prev == '(' && c == 'B') {
+                    // Select US ASCII charset -> NOOP
+                } else {
+                    log_debug("Unknown seq: ESC {} {}", m_input_seq.back(), c);
+                }
                 m_input_seq.clear();
                 m_input_state = S::Normal;
                 break;
-
+            }
             case S::CSI: {
                 m_input_seq += c;
                 if (c >= '0' && c <= '?') {
@@ -181,54 +211,66 @@ void Terminal::decode_input(const std::string &data)
                     decode_private(c, params);
                 }
                 switch (c) {
-                    case 'm':  // SGR - select graphic rendition
-                        flush_text();
-                        decode_sgr(params);
-                        break;
-                    case 'A': {  // CUU - cursor up
+                    case 'A': {  // CUU - Cursor Up
                         int p = 1;
-                        bool more = cseq_next_param(params, p);
-                        if (more) {
-                            log_warning("Ignored CUU params: {}", params);
-                        }
+                        cseq_parse_params("CUU", params, p);
                         set_cursor_pos(cursor_pos() - Vec2i{0, p});
                         break;
                     }
-                    case 'B': {  // CUD - cursor down
+                    case 'B': {  // CUD - Cursor Down
                         int p = 1;
-                        bool more = cseq_next_param(params, p);
-                        if (more) {
-                            log_warning("Ignored CUD params: {}", params);
-                        }
+                        cseq_parse_params("CUD", params, p);
                         set_cursor_pos(cursor_pos() + Vec2i{0, p});
                         break;
                     }
-                    case 'C': {  // CUF - cursor right
+                    case 'C': {  // CUF - Cursor Right (Forward)
                         int p = 1;
-                        bool more = cseq_next_param(params, p);
-                        if (more) {
-                            log_warning("Ignored CUF params: {}", params);
-                        }
+                        cseq_parse_params("CUF", params, p);
                         set_cursor_pos(cursor_pos() + Vec2i{p, 0});
                         break;
                     }
-                    case 'D': {  // CUB - cursor left
+                    case 'D': {  // CUB - Cursor Left (Back)
                         int p = 1;
-                        bool more = cseq_next_param(params, p);
-                        if (more) {
-                            log_warning("Ignored CUB params: {}", params);
-                        }
+                        cseq_parse_params("CUB", params, p);
                         set_cursor_pos(cursor_pos() - Vec2i{p, 0});
                         break;
                     }
-                    case 'K':  // EL - erase in line
+                    case 'H': {  // CUP - Cursor Position
+                        int row = 1, column = 1;
+                        cseq_parse_params("CUP", params, row, column);
+                        set_cursor_pos({column - 1, row - 1});
+                        break;
+                    }
+                    case 'J': {  // ED - Erase in Page (Display)
+                        int p = 0;
+                        cseq_parse_params("ED", params, p);
+                        switch (p) {
+                            case 0:
+                                // erase from cursor to the end of page
+                                break;
+                            case 1:
+                                // erase from the beginning of the page
+                                // up to and including the cursor position
+                                break;
+                            case 2:
+                                // erase all characters in the page
+                                erase_page();
+                                break;
+                            case 3:
+                                // erase scrollback buffer (xterm extension)
+                                erase_buffer();
+                                break;
+                            default:
+                                log_warning("Unknown ED param: {}", p);
+                                break;
+                        }
+                        break;
+                    }
+                    case 'K':  // EL - Erase in Line
                         flush_text();
                         {
                             int p = 0;
-                            bool more = cseq_next_param(params, p);
-                            if (more) {
-                                log_debug("Ignored EL params: {}", params);
-                            }
+                            cseq_parse_params("EL", params, p);
                             switch (p) {
                                 case 0:
                                     // clear from cursor to the end of the line
@@ -243,22 +285,46 @@ void Terminal::decode_input(const std::string &data)
                                     current_line().erase(0, size_in_cells().x);
                                     break;
                                 default:
-                                    log_debug("Unknown EL param: {}", params);
+                                    log_warning("Unknown EL param: {}", p);
                                     break;
                             }
                         }
                         break;
-                    case 'P': {
-                        // DCH - delete character (CSI p P)
-                        int p = 1;  // default
-                        bool more = cseq_next_param(params, p);
-                        if (more) {
-                            log_debug("Ignored DCH params: {}", params);
-                        }
+                    case 'P': {  // DCH - Delete Character (CSI p P)
+                        int p = 1;
+                        cseq_parse_params("DCH", params, p);
                         flush_text();
                         current_line().erase(cursor_pos().x, p);
                         break;
                     }
+                    case 'c':  {  // DA - Device Attributes
+                        int p = 0;
+                        cseq_parse_params("DA", params, p);
+                        if (p != 0) {
+                            log_debug("Unknown DA params: {}{}", p, params);
+                            break;
+                        }
+                        flush_text();
+                        // Say we are "VT100 with Advanced Video Option"
+                        m_shell.write("\033[?1;2c");
+                        break;
+                    }
+                    case 'd': {  // VPA - Line Position Absolute
+                        int p = 1;
+                        cseq_parse_params("VPA", params, p);
+                        set_cursor_pos({0, p - 1});
+                        break;
+                    }
+                    case 'e': {  // VPR - Line Position Forward
+                        int p = 1;
+                        cseq_parse_params("VPR", params, p);
+                        set_cursor_pos({0, cursor_pos().y + p});
+                        break;
+                    }
+                    case 'm':  // SGR - Select Graphic Rendition
+                        flush_text();
+                        decode_sgr(params);
+                        break;
                     default:
                         log_debug("Unknown seq: CSI {}", m_input_seq.substr(2));
                         break;
@@ -294,32 +360,63 @@ void Terminal::decode_sgr(std::string_view params)
 
         if (p == 0) {
             // reset all attributes
-            m_fg = c_fg_default;
-            m_bg = c_bg_default;
-            set_color(m_fg, m_bg);
+            set_fg(c_fg_default);
+            set_bg(c_bg_default);
             set_font_style(FontStyle::Regular);
             set_decoration(Decoration::None);
             set_mode(Mode::Normal);
         } else if (p == 1) {
             set_font_style(FontStyle::Bold);
         } else if (p >= 30 && p <= 37) {
-            m_fg = Color4bit(p - 30);
-            set_color(m_fg, m_bg);
+            set_fg(Color4bit(p - 30));
+        } else if (p == 38 && more_params) {
+            int p1 = 0;
+            more_params = cseq_next_param(params, p1);
+            if (p1 == 5 && more_params) {
+                // 8-bit color
+                int idx = 0;
+                more_params = cseq_next_param(params, idx);
+                set_fg(Color8bit(idx));
+            } else if (p1 == 2 && more_params) {
+                // 24-bit color
+                int r = 0, g = 0, b = 0;
+                more_params =
+                        cseq_next_param(params, r) &&
+                        cseq_next_param(params, g) &&
+                        cseq_next_param(params, b);
+                set_fg(Color24bit(r, g, b));
+            } else {
+                log_debug("Unknown SGR {};{}", p, p1);
+            }
         } else if (p == 39) {
-            m_fg = c_fg_default;
-            set_color(m_fg, m_bg);
+            set_fg(c_fg_default);
         } else if (p >= 40 && p <= 47) {
-            m_bg = Color4bit(p - 40);
-            set_color(m_fg, m_bg);
+            set_bg(Color4bit(p - 40));
+        } else if (p == 48 && more_params) {
+            int p1 = 0;
+            more_params = cseq_next_param(params, p1);
+            if (p1 == 5 && more_params) {
+                // 8-bit color
+                int idx = 0;
+                more_params = cseq_next_param(params, idx);
+                set_bg(Color8bit(idx));
+            } else if (p1 == 2 && more_params) {
+                // 24-bit color
+                int r = 0, g = 0, b = 0;
+                more_params =
+                        cseq_next_param(params, r) &&
+                        cseq_next_param(params, g) &&
+                        cseq_next_param(params, b);
+                set_bg(Color24bit(r, g, b));
+            } else {
+                log_debug("Unknown SGR {};{}", p, p1);
+            }
         } else if (p == 49) {
-            m_bg = c_bg_default;
-            set_color(m_fg, m_bg);
+            set_bg(c_bg_default);
         } else if (p >= 90 && p <= 97) {
-            m_fg = Color4bit(p - 90 + 8);
-            set_color(m_fg, m_bg);
+            set_fg(Color4bit(p - 90 + 8));
         } else if (p >= 100 && p <= 107) {
-            m_bg = Color4bit(p - 100 + 8);
-            set_color(m_fg, m_bg);
+            set_bg(Color4bit(p - 100 + 8));
         } else {
             log_debug("Unknown SGR {}", p);
         }
