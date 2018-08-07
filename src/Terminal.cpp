@@ -56,6 +56,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             case Key::Enter: seq = "\n"; break;
             case Key::KeypadEnter: seq = "\n"; break;
             case Key::Backspace: seq = "\b"; break;
+            case Key::Tab: seq = "\t"; break;
             case Key::Up: seq = "\033[A"; break;  // CSI A
             case Key::Down: seq = "\033[B"; break;  // CSI B
             case Key::Right: seq = "\033[C"; break;  // CSI C
@@ -134,7 +135,7 @@ void Terminal::decode_input(const std::string &data)
                         break;
                     case 8:   // BS
                         flush_text();
-                        set_cursor_pos(cursor_pos() - Vec2i{1, 0});
+                        set_cursor_pos(cursor_pos() - Vec2u{1, 0});
                         break;
                     case 9:   // HT
                         text += "   ";
@@ -142,7 +143,7 @@ void Terminal::decode_input(const std::string &data)
                     case 10:  // LF
                         // cursor down / new line
                         flush_text();
-                        set_cursor_pos(cursor_pos() + Vec2i{0, 1});
+                        set_cursor_pos(cursor_pos() + Vec2u{0, 1});
                         break;
                     case 13:  // CR
                         // cursor to line beginning
@@ -203,36 +204,36 @@ void Terminal::decode_input(const std::string &data)
                 params.remove_prefix(2);
                 params.remove_suffix(1);
                 TRACE("CSI {} {}", params, c);
+                flush_text();
                 if (!params.empty() && (
                         (params.front() >= '\x3c' && params.front() <= '\x3f') ||
                         (params.back() >= 'p' && params.back() <= '~'))) {
                     // private use
-                    flush_text();
                     decode_private(c, params);
                 }
                 switch (c) {
                     case 'A': {  // CUU - Cursor Up
                         int p = 1;
                         cseq_parse_params("CUU", params, p);
-                        set_cursor_pos(cursor_pos() - Vec2i{0, p});
+                        set_cursor_pos(cursor_pos() - Vec2u{0, p});
                         break;
                     }
                     case 'B': {  // CUD - Cursor Down
                         int p = 1;
                         cseq_parse_params("CUD", params, p);
-                        set_cursor_pos(cursor_pos() + Vec2i{0, p});
+                        set_cursor_pos(cursor_pos() + Vec2u{0, p});
                         break;
                     }
                     case 'C': {  // CUF - Cursor Right (Forward)
                         int p = 1;
                         cseq_parse_params("CUF", params, p);
-                        set_cursor_pos(cursor_pos() + Vec2i{p, 0});
+                        set_cursor_pos(cursor_pos() + Vec2u{p, 0});
                         break;
                     }
                     case 'D': {  // CUB - Cursor Left (Back)
                         int p = 1;
                         cseq_parse_params("CUB", params, p);
-                        set_cursor_pos(cursor_pos() - Vec2i{p, 0});
+                        set_cursor_pos(cursor_pos() - Vec2u{p, 0});
                         break;
                     }
                     case 'H': {  // CUP - Cursor Position
@@ -266,35 +267,32 @@ void Terminal::decode_input(const std::string &data)
                         }
                         break;
                     }
-                    case 'K':  // EL - Erase in Line
-                        flush_text();
-                        {
-                            int p = 0;
-                            cseq_parse_params("EL", params, p);
-                            switch (p) {
-                                case 0:
-                                    // clear from cursor to the end of the line
-                                    current_line().erase(cursor_pos().x, size_in_cells().x);
-                                    break;
-                                case 1:
-                                    // clear from cursor to beginning of the line
-                                    current_line().erase(0, cursor_pos().x);
-                                    break;
-                                case 2:
-                                    // clear entire line
-                                    current_line().erase(0, size_in_cells().x);
-                                    break;
-                                default:
-                                    log_warning("Unknown EL param: {}", p);
-                                    break;
-                            }
+                    case 'K': {  // EL - Erase in Line
+                        int p = 0;
+                        cseq_parse_params("EL", params, p);
+                        switch (p) {
+                            case 0:
+                                // clear from cursor to the end of the line
+                                current_line().erase_text(cursor_pos().x, size_in_cells().x);
+                                break;
+                            case 1:
+                                // clear from cursor to beginning of the line
+                                current_line().erase_text(0, cursor_pos().x);
+                                break;
+                            case 2:
+                                // clear entire line
+                                current_line().erase_text(0, size_in_cells().x);
+                                break;
+                            default:
+                                log_warning("Unknown EL param: {}", p);
+                                break;
                         }
                         break;
+                    }
                     case 'P': {  // DCH - Delete Character (CSI p P)
                         int p = 1;
                         cseq_parse_params("DCH", params, p);
-                        flush_text();
-                        current_line().erase(cursor_pos().x, p);
+                        current_line().erase_text(cursor_pos().x, p);
                         break;
                     }
                     case 'c':  {  // DA - Device Attributes
@@ -304,7 +302,6 @@ void Terminal::decode_input(const std::string &data)
                             log_debug("Unknown DA params: {}{}", p, params);
                             break;
                         }
-                        flush_text();
                         // Say we are "VT100 with Advanced Video Option"
                         m_shell.write("\033[?1;2c");
                         break;
@@ -322,7 +319,6 @@ void Terminal::decode_input(const std::string &data)
                         break;
                     }
                     case 'm':  // SGR - Select Graphic Rendition
-                        flush_text();
                         decode_sgr(params);
                         break;
                     default:
