@@ -165,27 +165,62 @@ void Terminal::decode_input(const std::string &data)
 
             case S::Escape:
                 m_input_seq += c;
-                if (c == '[') {
-                    m_input_state = S::CSI;
-                    break;
-                } else if (c == ']') {
-                    m_input_state = S::OSC;
-                    break;
-                } else if (c == '(') {
-                    // ISO 2022 character set switching
-                    m_input_state = S::Escape_1;
-                    break;
+                switch (c) {
+                    case 27: {  // ESC
+                        m_input_seq.clear();
+                        break;
+                    }
+                    case 'D':  // IND - Index
+                        flush_text();
+                        set_cursor_pos(cursor_pos() + Vec2u{0, 1});
+                        break;
+                    case 'E':  // NEL - Next Line
+                        flush_text();
+                        set_cursor_pos({0, cursor_pos().y + 1});
+                        break;
+                    case 'M':  // RI - Reverse Index
+                        flush_text();
+                        set_cursor_pos(cursor_pos() - Vec2u{0, 1});
+                        break;
+                    case '[':
+                        m_input_state = S::CSI;
+                        break;
+                    case ']':
+                        m_input_state = S::OSC;
+                        break;
+                    case '#':
+                    case ' ':
+                    case '%':
+                    case '(':
+                    case ')':
+                    case '*':
+                    case '+':
+                    case '-':
+                    case '.':
+                    case '/':
+                        m_input_state = S::Escape_1; break;
+                    default:
+                        log_debug("Unknown seq: ESC {}", c);
+                        m_input_seq.clear();
+                        m_input_state = S::Normal;
+                        break;
                 }
-                log_debug("Unknown seq: ESC {}", c);
-                m_input_seq.clear();
-                m_input_state = S::Normal;
                 break;
 
             case S::Escape_1: {
+                if (c == 27) {  // ESC
+                    m_input_seq.clear();
+                    m_input_state = S::Escape;
+                    break;
+                }
                 int prev = m_input_seq.back();
                 // ISO 2022 character set switching
                 if (prev == '(' && c == 'B') {
                     // Select US ASCII charset -> NOOP
+                } else if (prev == '#' && c == '8') {
+                    // DECALN - Screen Alignment Pattern
+                    flush_text();
+                    set_cursor_pos({0, 0});
                 } else {
                     log_debug("Unknown seq: ESC {} {}", m_input_seq.back(), c);
                 }
@@ -316,6 +351,12 @@ void Terminal::decode_input(const std::string &data)
                         unsigned p = 1;
                         cseq_parse_params("VPR", params, p);
                         set_cursor_pos({0, cursor_pos().y + p});
+                        break;
+                    }
+                    case 'f': {  // HVP - Horizontal and Vertical Position
+                        unsigned row = 1, column = 1;
+                        cseq_parse_params("HVP", params, row, column);
+                        set_cursor_pos({column - 1, row - 1});
                         break;
                     }
                     case 'h': {  // SM - Set Mode
