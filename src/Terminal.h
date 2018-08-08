@@ -60,8 +60,9 @@ private:
 
     // state
     struct {
-        bool bracketed_paste_mode : 1;  // TODO
-    } m_flags = {};
+        bool insert : 1;
+        bool bracketed_paste : 1;  // TODO
+    } m_mode = {};
 };
 
 } // namespace xci

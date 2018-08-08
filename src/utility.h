@@ -28,10 +28,10 @@ namespace xci {
 ///               If no digits were parsed, the content won't be modified.
 /// \return       True if there are more parameters to be parsed.
 ///               False if this was the last one.
-bool cseq_next_param(std::string_view& params, int& p);
+bool cseq_next_param(std::string_view& params, unsigned& p);
 
-void cseq_parse_params(const char* name, std::string_view& params, int& p1);
-void cseq_parse_params(const char* name, std::string_view& params, int& p1, int& p2);
+void cseq_parse_params(const char* name, std::string_view& params, unsigned& p1);
+void cseq_parse_params(const char* name, std::string_view& params, unsigned& p1, unsigned& p2);
 
 } // namespace xci
 
