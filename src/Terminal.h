@@ -31,6 +31,7 @@ public:
     void update(std::chrono::nanoseconds elapsed) override;
     bool key_event(graphics::View& view, const graphics::KeyEvent& ev) override;
     void char_event(graphics::View& view, const graphics::CharEvent& ev) override;
+    void scroll_event(graphics::View& view, const graphics::ScrollEvent& ev) override;
 
     // Decode input from shell. Data are mix of UTF-8 text,
     // control codes and escape sequences. This will call
@@ -58,7 +59,7 @@ private:
     static constexpr Color4bit c_fg_default = Color4bit::White;
     static constexpr Color4bit c_bg_default = Color4bit::Black;
 
-    // state
+    // modes
     struct {
         bool insert : 1;
         bool bracketed_paste : 1;  // TODO

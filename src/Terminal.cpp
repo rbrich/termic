@@ -105,6 +105,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
     }
 
     m_shell.write(seq);
+    cancel_scrollback();
     return true;
 }
 
@@ -113,6 +114,13 @@ void Terminal::char_event(View &view, const CharEvent &ev)
 {
     log_debug("Input char: {}", ev.code_point);
     m_shell.write(to_utf8(ev.code_point));
+}
+
+
+void Terminal::scroll_event(View& view, const ScrollEvent& ev)
+{
+    log_debug("Scroll: {}", ev.offset);
+    scrollback(ev.offset.y);
 }
 
 
