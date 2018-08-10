@@ -279,6 +279,12 @@ void Terminal::decode_input(const std::string &data)
                         set_cursor_pos(cursor_pos() - Vec2u{p, 0});
                         break;
                     }
+                    case 'G': {  // CHA - Cursor Horizontal Absolute
+                        unsigned column = 1;
+                        cseq_parse_params("CHA", params, column);
+                        set_cursor_pos({column, cursor_pos().y});
+                        break;
+                    }
                     case 'H': {  // CUP - Cursor Position
                         unsigned row = 1, column = 1;
                         cseq_parse_params("CUP", params, row, column);
@@ -332,10 +338,17 @@ void Terminal::decode_input(const std::string &data)
                         }
                         break;
                     }
-                    case 'P': {  // DCH - Delete Character (CSI p P)
+                    case 'P': {  // DCH - Delete Character
                         unsigned p = 1;
                         cseq_parse_params("DCH", params, p);
                         current_line().erase_text(cursor_pos().x, p);
+                        break;
+                    }
+                    case 'X': {  // ECH - Erase Character
+                        unsigned p = 1;
+                        cseq_parse_params("ECH", params, p);
+                        std::string spaces(p, ' ');
+                        current_line().add_text(cursor_pos().x, spaces, {} /*attr*/, false /*insert*/);
                         break;
                     }
                     case 'c':  {  // DA - Device Attributes
