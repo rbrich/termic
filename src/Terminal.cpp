@@ -92,6 +92,9 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
                 log_debug("Terminal::key_event: Unhandled key: {}", int(ev.key));
                 return false;
         }
+        m_shell.write(seq);
+        cancel_scrollback();
+        return true;
     }
 
     if (ev.mod == ModKey::Ctrl()) {
@@ -103,6 +106,8 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             log_debug("Terminal::key_event: Unhandled key: Ctrl + {}", int(ev.key));
             return false;
         }
+        m_shell.write(seq);
+        return true;
     }
 
     if (ev.mod == ModKey::Shift()) {
@@ -117,9 +122,22 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
         }
     }
 
-    m_shell.write(seq);
-    cancel_scrollback();
-    return true;
+    if (ev.mod == ModKey::ShiftCtrl()) {
+        switch (ev.key) {
+            case Key::C:
+                // TODO: select & copy
+                view.window()->set_clipboard_string("Hello!");
+                return true;
+            case Key::V:
+                // Clipboard paste
+                m_shell.write(view.window()->get_clipboard_string());
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    return false;
 }
 
 
