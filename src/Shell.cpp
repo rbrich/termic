@@ -27,6 +27,8 @@
 using namespace std::chrono_literals;
 using namespace xci::util::log;
 
+namespace xci {
+
 
 Shell::~Shell()
 {
@@ -106,3 +108,6 @@ void Shell::thread_main()
         log_warning("Shell killed: {}", WTERMSIG(wstatus));
     m_window.close();
 }
+
+
+} // namespace xci

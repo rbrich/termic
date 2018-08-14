@@ -23,11 +23,14 @@
 namespace xci {
 
 class Terminal: public xci::widgets::TextTerminal {
+    using Buffer = widgets::terminal::Buffer;
+
 public:
     explicit Terminal(const xci::graphics::Window &window) : m_shell(window) {}
 
     bool start_shell();
 
+    void resize(graphics::View& view) override;
     void update(std::chrono::nanoseconds elapsed) override;
     bool key_event(graphics::View& view, const graphics::KeyEvent& ev) override;
     void char_event(graphics::View& view, const graphics::CharEvent& ev) override;
@@ -40,11 +43,18 @@ public:
 
 private:
 
+    void decode_ctlseq(char c, std::string_view params);
     void decode_sgr(std::string_view params);
     void decode_private(char f, std::string_view params);
 
 private:
     Shell m_shell;
+
+    // Normal / Alternate Screen Buffer
+    // These variables contain state of the *other* buffer.
+    // Current buffer and cursor is inside TextTerminal instance.
+    std::unique_ptr<Buffer> m_alternate_buffer = std::make_unique<Buffer>();
+    util::Vec2u m_saved_cursor;
 
     enum class InputState {
         Normal,
@@ -63,6 +73,7 @@ private:
     struct {
         bool insert : 1;
         bool bracketed_paste : 1;  // TODO
+        bool alternate_screen_buffer : 1;  // Normal / Alternate Screen Buffer
     } m_mode = {};
 };
 

@@ -21,6 +21,8 @@
 #include <thread>
 #include <mutex>
 
+namespace xci {
+
 
 class Shell {
 public:
@@ -34,6 +36,8 @@ public:
 
     void write(const std::string& data);
 
+    Pty& pty() { return m_pty; }
+
 private:
     void thread_main();
 
@@ -46,5 +50,7 @@ private:
     std::string m_data;
 };
 
+
+} // namespace xci
 
 #endif // XCITERM_SHELL_H

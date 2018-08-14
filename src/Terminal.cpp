@@ -26,11 +26,24 @@ using namespace xci::util;
 using namespace xci::util::log;
 using namespace xci::graphics;
 using namespace xci::widgets;
+using namespace std::chrono_literals;
 
 
 bool Terminal::start_shell()
 {
     return m_shell.start();
+}
+
+
+void Terminal::resize(graphics::View &view)
+{
+    auto orig_size = size_in_cells();
+    TextTerminal::resize(view);
+    auto new_size = size_in_cells();
+    if (orig_size != new_size) {
+        log_debug("Terminal: resize {} cells", size_in_cells());
+        m_shell.pty().set_winsize(size_in_cells());
+    }
 }
 
 
@@ -130,6 +143,7 @@ void Terminal::decode_input(const std::string &data)
     std::string text;
     auto flush_text = [&text, this]() {
         if (!text.empty()) {
+            TRACE("flush_text {} (insert={})", text, bool(m_mode.insert));
             add_text(text, m_mode.insert);
             text.clear();
         }
@@ -178,6 +192,26 @@ void Terminal::decode_input(const std::string &data)
                         m_input_seq.clear();
                         break;
                     }
+                    case ' ':  // 32
+                    case '#':  // 35
+                    case '%':  // 37
+                    case '(':  // 40
+                    case ')':  // 41
+                    case '*':  // 42
+                    case '+':  // 43
+                    case '-':  // 45
+                    case '.':  // 46
+                    case '/':  // 47
+                        m_input_state = S::Escape_1;
+                        break;
+                    case '7':  // DECSC - Save Cursor
+                        flush_text();
+                        m_saved_cursor = cursor_pos();
+                        break;
+                    case '8':  // DECRC - Restore Cursor
+                        flush_text();
+                        set_cursor_pos(m_saved_cursor);
+                        break;
                     case 'D':  // IND - Index
                         flush_text();
                         set_cursor_pos(cursor_pos() + Vec2u{0, 1});
@@ -196,17 +230,6 @@ void Terminal::decode_input(const std::string &data)
                     case ']':
                         m_input_state = S::OSC;
                         break;
-                    case '#':
-                    case ' ':
-                    case '%':
-                    case '(':
-                    case ')':
-                    case '*':
-                    case '+':
-                    case '-':
-                    case '.':
-                    case '/':
-                        m_input_state = S::Escape_1; break;
                     default:
                         log_debug("Unknown seq: ESC {}", c);
                         m_input_seq.clear();
@@ -242,183 +265,19 @@ void Terminal::decode_input(const std::string &data)
                     // continue reading parameters
                     break;
                 }
+                flush_text();
                 // Remove CSI at start and command char at the end
                 std::string_view params = m_input_seq;
                 params.remove_prefix(2);
                 params.remove_suffix(1);
                 TRACE("CSI {} {}", params, c);
-                flush_text();
                 if (!params.empty() && (
                         (params.front() >= '\x3c' && params.front() <= '\x3f') ||
                         (params.back() >= 'p' && params.back() <= '~'))) {
                     // private use
                     decode_private(c, params);
-                }
-                switch (c) {
-                    case 'A': {  // CUU - Cursor Up
-                        unsigned p = 1;
-                        cseq_parse_params("CUU", params, p);
-                        set_cursor_pos(cursor_pos() - Vec2u{0, p});
-                        break;
-                    }
-                    case 'B': {  // CUD - Cursor Down
-                        unsigned p = 1;
-                        cseq_parse_params("CUD", params, p);
-                        set_cursor_pos(cursor_pos() + Vec2u{0, p});
-                        break;
-                    }
-                    case 'C': {  // CUF - Cursor Right (Forward)
-                        unsigned p = 1;
-                        cseq_parse_params("CUF", params, p);
-                        set_cursor_pos(cursor_pos() + Vec2u{p, 0});
-                        break;
-                    }
-                    case 'D': {  // CUB - Cursor Left (Back)
-                        unsigned p = 1;
-                        cseq_parse_params("CUB", params, p);
-                        set_cursor_pos(cursor_pos() - Vec2u{p, 0});
-                        break;
-                    }
-                    case 'G': {  // CHA - Cursor Horizontal Absolute
-                        unsigned column = 1;
-                        cseq_parse_params("CHA", params, column);
-                        set_cursor_pos({column, cursor_pos().y});
-                        break;
-                    }
-                    case 'H': {  // CUP - Cursor Position
-                        unsigned row = 1, column = 1;
-                        cseq_parse_params("CUP", params, row, column);
-                        set_cursor_pos({column - 1, row - 1});
-                        break;
-                    }
-                    case 'J': {  // ED - Erase in Page (Display)
-                        unsigned p = 0;
-                        cseq_parse_params("ED", params, p);
-                        switch (p) {
-                            case 0:
-                                // erase from cursor to the end of page
-                                break;
-                            case 1:
-                                // erase from the beginning of the page
-                                // up to and including the cursor position
-                                break;
-                            case 2:
-                                // erase all characters in the page
-                                erase_page();
-                                break;
-                            case 3:
-                                // erase scrollback buffer (xterm extension)
-                                erase_buffer();
-                                break;
-                            default:
-                                log_warning("Unknown ED param: {}", p);
-                                break;
-                        }
-                        break;
-                    }
-                    case 'K': {  // EL - Erase in Line
-                        unsigned p = 0;
-                        cseq_parse_params("EL", params, p);
-                        switch (p) {
-                            case 0:
-                                // clear from cursor to the end of the line
-                                current_line().erase_text(cursor_pos().x, size_in_cells().x);
-                                break;
-                            case 1:
-                                // clear from cursor to beginning of the line
-                                current_line().erase_text(0, cursor_pos().x);
-                                break;
-                            case 2:
-                                // clear entire line
-                                current_line().erase_text(0, size_in_cells().x);
-                                break;
-                            default:
-                                log_warning("Unknown EL param: {}", p);
-                                break;
-                        }
-                        break;
-                    }
-                    case 'P': {  // DCH - Delete Character
-                        unsigned p = 1;
-                        cseq_parse_params("DCH", params, p);
-                        current_line().erase_text(cursor_pos().x, p);
-                        break;
-                    }
-                    case 'X': {  // ECH - Erase Character
-                        unsigned p = 1;
-                        cseq_parse_params("ECH", params, p);
-                        std::string spaces(p, ' ');
-                        current_line().add_text(cursor_pos().x, spaces, {} /*attr*/, false /*insert*/);
-                        break;
-                    }
-                    case 'c':  {  // DA - Device Attributes
-                        unsigned p = 0;
-                        cseq_parse_params("DA", params, p);
-                        if (p != 0) {
-                            log_debug("Unknown DA params: {}{}", p, params);
-                            break;
-                        }
-                        // Say we are "VT100 with Advanced Video Option"
-                        m_shell.write("\033[?1;2c");
-                        break;
-                    }
-                    case 'd': {  // VPA - Line Position Absolute
-                        unsigned p = 1;
-                        cseq_parse_params("VPA", params, p);
-                        set_cursor_pos({0, p - 1});
-                        break;
-                    }
-                    case 'e': {  // VPR - Line Position Forward
-                        unsigned p = 1;
-                        cseq_parse_params("VPR", params, p);
-                        set_cursor_pos({0, cursor_pos().y + p});
-                        break;
-                    }
-                    case 'f': {  // HVP - Horizontal and Vertical Position
-                        unsigned row = 1, column = 1;
-                        cseq_parse_params("HVP", params, row, column);
-                        set_cursor_pos({column - 1, row - 1});
-                        break;
-                    }
-                    case 'h': {  // SM - Set Mode
-                        unsigned p = 0;
-                        cseq_parse_params("SM", params, p);
-                        switch (p) {
-                            case 4:  // IRM - Insert/Replace Mode
-                                m_mode.insert = true;
-                                break;
-                            default:
-                                log_debug("Unknown SM param: {}", p);
-                                break;
-                        }
-                    }
-                    case 'l': {  // RM - Reset Mode
-                        unsigned p = 0;
-                        cseq_parse_params("RM", params, p);
-                        switch (p) {
-                            case 4:  // IRM - Insert/Replace Mode
-                                m_mode.insert = false;
-                                break;
-                            default:
-                                log_debug("Unknown RM param: {}", p);
-                                break;
-                        }
-                    }
-                    case 'm':  // SGR - Select Graphic Rendition
-                        decode_sgr(params);
-                        break;
-
-                    case 'r': { // DECSTBM - Set Scrolling Region (Set Top and Bottom Margins)
-                        unsigned top = 0;
-                        unsigned bottom = 0;
-                        cseq_parse_params("DECSTBM", params, top, bottom);
-                        set_cursor_pos({0, 0});
-                        log_debug("DECSTBM: {} {} (not implemented)", top, bottom);
-                        break;
-                    }
-                    default:
-                        log_debug("Unknown seq: CSI {}", m_input_seq.substr(2));
-                        break;
+                } else {
+                    decode_ctlseq(c, params);
                 }
                 m_input_seq.clear();
                 m_input_state = S::Normal;
@@ -441,9 +300,179 @@ void Terminal::decode_input(const std::string &data)
 }
 
 
+void Terminal::decode_ctlseq(char c, std::string_view params)
+{
+    switch (c) {
+        case 'A': {  // CUU - Cursor Up
+            unsigned p = 1;
+            cseq_parse_params("CUU", params, p);
+            set_cursor_pos(cursor_pos() - Vec2u{0, p});
+            break;
+        }
+        case 'B': {  // CUD - Cursor Down
+            unsigned p = 1;
+            cseq_parse_params("CUD", params, p);
+            set_cursor_pos(cursor_pos() + Vec2u{0, p});
+            break;
+        }
+        case 'C': {  // CUF - Cursor Right (Forward)
+            unsigned p = 1;
+            cseq_parse_params("CUF", params, p);
+            set_cursor_pos(cursor_pos() + Vec2u{p, 0});
+            break;
+        }
+        case 'D': {  // CUB - Cursor Left (Back)
+            unsigned p = 1;
+            cseq_parse_params("CUB", params, p);
+            set_cursor_pos(cursor_pos() - Vec2u{p, 0});
+            break;
+        }
+        case 'G': {  // CHA - Cursor Horizontal Absolute
+            unsigned column = 1;
+            cseq_parse_params("CHA", params, column);
+            set_cursor_pos({column, cursor_pos().y});
+            break;
+        }
+        case 'H': {  // CUP - Cursor Position
+            unsigned row = 1, column = 1;
+            cseq_parse_params("CUP", params, row, column);
+            set_cursor_pos({column - 1, row - 1});
+            break;
+        }
+        case 'J': {  // ED - Erase in Page (Display)
+            unsigned p = 0;
+            cseq_parse_params("ED", params, p);
+            switch (p) {
+                case 0:
+                    // erase from cursor to the end of page
+                    break;
+                case 1:
+                    // erase from the beginning of the page
+                    // up to and including the cursor position
+                    break;
+                case 2:
+                    // erase all characters in the page
+                    erase_page();
+                    break;
+                case 3:
+                    // erase scrollback buffer (xterm extension)
+                    erase_buffer();
+                    break;
+                default:
+                    log_warning("Unknown ED param: {}", p);
+                    break;
+            }
+            break;
+        }
+        case 'K': {  // EL - Erase in Line
+            unsigned p = 0;
+            cseq_parse_params("EL", params, p);
+            switch (p) {
+                case 0:
+                    // clear from cursor to the end of the line
+                    current_line().erase_text(cursor_pos().x, size_in_cells().x);
+                    break;
+                case 1:
+                    // clear from cursor to beginning of the line
+                    current_line().erase_text(0, cursor_pos().x);
+                    break;
+                case 2:
+                    // clear entire line
+                    current_line().erase_text(0, size_in_cells().x);
+                    break;
+                default:
+                    log_warning("Unknown EL param: {}", p);
+                    break;
+            }
+            break;
+        }
+        case 'P': {  // DCH - Delete Character
+            unsigned p = 1;
+            cseq_parse_params("DCH", params, p);
+            current_line().erase_text(cursor_pos().x, p);
+            break;
+        }
+        case 'X': {  // ECH - Erase Character
+            unsigned p = 1;
+            cseq_parse_params("ECH", params, p);
+            std::string spaces(p, ' ');
+            current_line().add_text(cursor_pos().x, spaces, {} /*attr*/, false /*insert*/);
+            break;
+        }
+        case 'c':  {  // DA - Device Attributes
+            unsigned p = 0;
+            cseq_parse_params("DA", params, p);
+            if (p != 0) {
+                log_debug("Unknown DA params: {}{}", p, params);
+                break;
+            }
+            // Say we are "VT100 with Advanced Video Option"
+            m_shell.write("\033[?1;2c");
+            break;
+        }
+        case 'd': {  // VPA - Line Position Absolute
+            unsigned p = 1;
+            cseq_parse_params("VPA", params, p);
+            set_cursor_pos({0, p - 1});
+            break;
+        }
+        case 'e': {  // VPR - Line Position Forward
+            unsigned p = 1;
+            cseq_parse_params("VPR", params, p);
+            set_cursor_pos({0, cursor_pos().y + p});
+            break;
+        }
+        case 'f': {  // HVP - Horizontal and Vertical Position
+            unsigned row = 1, column = 1;
+            cseq_parse_params("HVP", params, row, column);
+            set_cursor_pos({column - 1, row - 1});
+            break;
+        }
+        case 'h': {  // SM - Set Mode
+            unsigned p = 0;
+            cseq_parse_params("SM", params, p);
+            switch (p) {
+                case 4:  // IRM - Insert/Replace Mode
+                    m_mode.insert = true;
+                    break;
+                default:
+                    log_debug("Unknown SM param: {}", p);
+                    break;
+            }
+        }
+        case 'l': {  // RM - Reset Mode
+            unsigned p = 0;
+            cseq_parse_params("RM", params, p);
+            switch (p) {
+                case 4:  // IRM - Insert/Replace Mode
+                    m_mode.insert = false;
+                    break;
+                default:
+                    log_debug("Unknown RM param: {}", p);
+                    break;
+            }
+        }
+        case 'm':  // SGR - Select Graphic Rendition
+            decode_sgr(params);
+            break;
+
+        case 'r': { // DECSTBM - Set Scrolling Region (Set Top and Bottom Margins)
+            unsigned top = 0;
+            unsigned bottom = 0;
+            cseq_parse_params("DECSTBM", params, top, bottom);
+            set_cursor_pos({0, 0});
+            log_debug("DECSTBM: {} {} (not implemented)", top, bottom);
+            break;
+        }
+        default:
+            log_debug("Unknown seq: CSI {} {}", params, c);
+            break;
+    }
+}
+
+
 void Terminal::decode_sgr(std::string_view params)
 {
-    TRACE("params: {}", params);
     bool more_params = true;
     while (more_params) {
         unsigned p = 0;
@@ -517,12 +546,66 @@ void Terminal::decode_sgr(std::string_view params)
 
 void Terminal::decode_private(char f, std::string_view params)
 {
-    if (params == "?2004" && (f == 'h' || f == 'l')) {
-        // bracketed paste mode
-        m_mode.bracketed_paste = bool(f == 'h');
-        log_debug("Terminal: bracketed_paste_mode = {}",
-                  bool(m_mode.bracketed_paste));
-        return;
+    if (!params.empty() && params[0] == '?' && (f == 'h' || f == 'l')) {
+        // DECSET - DEC Private Mode Set [CSI ? <mode> h]
+        // DECRST - DEC Private Mode Reset [CSI ? <mode> l]
+        bool mode_set = bool(f == 'h');
+        unsigned mode = 0;
+        params.remove_prefix(1);
+        cseq_parse_params(mode_set ? "DECSET" : "DECRST", params, mode);
+        switch (mode) {
+            case 3:
+                // DECCOLM - 80 / 132 Column Mode
+                log_debug("Terminal: request for {} column mode ignored",
+                          (mode_set ? 132u : 80u));
+                //set_req_cells({mode_set ? 132u : 80u, req_cells().y});
+                return;
+            case 47:
+                // Normal / Alternate Screen Buffer (xterm)
+                if (mode_set != m_mode.alternate_screen_buffer) {
+                    auto orig_cursor = cursor_pos();
+                    m_alternate_buffer = set_buffer(std::move(m_alternate_buffer));
+                    set_cursor_pos(m_saved_cursor);
+                    m_saved_cursor = orig_cursor;
+                }
+                m_mode.alternate_screen_buffer = mode_set;
+                return;
+            case 1048:
+                if (mode_set) {
+                    // Save cursor as in DECSC (xterm)
+                    m_saved_cursor = cursor_pos();
+                } else {
+                    // Restore cursor as in DECRC (xterm)
+                    set_cursor_pos(m_saved_cursor);
+                }
+                return;
+            case 1049:
+                if (mode_set && !m_mode.alternate_screen_buffer) {
+                    // Save cursor as in DECSC (xterm)
+                    // After saving the cursor, switch to the Alternate Screen Buffer,
+                    // clearing it first.
+                    m_mode.alternate_screen_buffer = true;
+                    m_saved_cursor = cursor_pos();
+                    m_alternate_buffer = set_buffer(std::move(m_alternate_buffer));
+                    erase_buffer();
+                }
+                if (!mode_set && m_mode.alternate_screen_buffer) {
+                    // Use Normal Screen Buffer and restore cursor as in DECRC (xterm)
+                    m_mode.alternate_screen_buffer = false;
+                    m_alternate_buffer = set_buffer(std::move(m_alternate_buffer));
+                    set_cursor_pos(m_saved_cursor);
+                }
+                return;
+            case 2004:
+                // bracketed paste mode
+                m_mode.bracketed_paste = mode_set;
+                log_debug("Terminal: bracketed_paste_mode = {}",
+                          bool(m_mode.bracketed_paste));
+                return;
+            default:
+                log_debug("Unknown DECSET/DECRST: {} {}", mode, f);
+                return;
+        }
     }
     log_debug("Unknown private seq {}", params);
 }

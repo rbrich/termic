@@ -23,8 +23,12 @@
 #include <unistd.h>
 #include <poll.h>
 #include <sys/ioctl.h>
+#include <termios.h>
+#include <csignal>
 
 using namespace xci::util::log;
+
+namespace xci {
 
 
 Pty::~Pty()
@@ -77,10 +81,11 @@ pid_t Pty::fork()
         return (pid_t) -1;
     }
     if (child_pid != 0) {
+        log_info("Pty fork: child pid {}", child_pid);
         return child_pid;
     }
 
-    // child fall-through
+    // === child fall-through ===
 
     constexpr size_t sn_max = 50;
     char slave_name[sn_max];
@@ -88,6 +93,7 @@ pid_t Pty::fork()
         log_error("ptsname_r: {m}");
         _exit(-1);
     }
+    log_info("Pty fork: slave {}", slave_name);
 
     // no longer needed in child
     ::close(m_master);
@@ -195,3 +201,18 @@ void Pty::write(const std::string &data)
     }
     assert(size_t(rc) == data.size());
 }
+
+
+void Pty::set_winsize(util::Vec2u size_chars)
+{
+    winsize ws = {};
+    ws.ws_row = (unsigned short)(size_chars.y);
+    ws.ws_col = (unsigned short)(size_chars.x);
+    if (ioctl(m_master, TIOCSWINSZ, &ws) == -1) {
+        log_error("ioctl: {m}");
+        return;
+    }
+}
+
+
+} // namespace xci

@@ -17,6 +17,9 @@
 #define XCITERM_PTY_H
 
 #include <string>
+#include <xci/util/geometry.h>
+
+namespace xci {
 
 
 class Pty {
@@ -34,9 +37,14 @@ public:
 
     void write(const std::string &data);
 
+    // Set window size in characters
+    void set_winsize(util::Vec2u size_chars);
+
 private:
     int m_master = -1;
 };
 
+
+} // namespace xci
 
 #endif // XCITERM_PTY_H
