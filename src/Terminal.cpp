@@ -363,10 +363,12 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
             switch (p) {
                 case 0:
                     // erase from cursor to the end of page
+                    erase_to_end_of_page();
                     break;
                 case 1:
                     // erase from the beginning of the page
                     // up to and including the cursor position
+                    erase_to_cursor();
                     break;
                 case 2:
                     // erase all characters in the page
@@ -388,15 +390,15 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
             switch (p) {
                 case 0:
                     // clear from cursor to the end of the line
-                    current_line().erase_text(cursor_pos().x, size_in_cells().x);
+                    erase_in_line(cursor_pos().x, size_in_cells().x - cursor_pos().x);
                     break;
                 case 1:
                     // clear from cursor to beginning of the line
-                    current_line().erase_text(0, cursor_pos().x);
+                    erase_in_line(0, cursor_pos().x);
                     break;
                 case 2:
                     // clear entire line
-                    current_line().erase_text(0, size_in_cells().x);
+                    erase_in_line(0, size_in_cells().x);
                     break;
                 default:
                     log_warning("Unknown EL param: {}", p);
@@ -407,7 +409,7 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
         case 'P': {  // DCH - Delete Character
             unsigned p = 1;
             cseq_parse_params("DCH", params, p);
-            current_line().erase_text(cursor_pos().x, p);
+            current_line().delete_text(cursor_pos().x, p);
             break;
         }
         case 'X': {  // ECH - Erase Character
