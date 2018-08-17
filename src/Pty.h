@@ -32,7 +32,7 @@ public:
     pid_t fork();
 
     int poll();
-    std::string read();
+    size_t read(char* buffer, size_t size);
     bool eof() const { return m_master == -1; }
 
     void write(const std::string &data);

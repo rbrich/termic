@@ -151,7 +151,7 @@ void Terminal::char_event(View &view, const CharEvent &ev)
 void Terminal::scroll_event(View& view, const ScrollEvent& ev)
 {
     log_debug("Scroll: {}", ev.offset);
-    scrollback(ev.offset.y);
+    scrollback(ev.offset.y * 3.0);
 }
 
 

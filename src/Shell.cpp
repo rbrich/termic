@@ -67,15 +67,15 @@ bool Shell::start()
 
 bool Shell::data_ready() const
 {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    return !m_data.empty();
+    return m_data_ready.load(std::memory_order_acquire);
 }
 
 
 std::string Shell::read()
 {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    std::string result = std::move(m_data);
+    assert(m_data_ready.load(std::memory_order_acquire));
+    std::string result(m_read_buffer.data(), m_read_size);
+    m_data_ready.store(false, std::memory_order::memory_order_release);
     return result;
 }
 
@@ -92,10 +92,9 @@ void Shell::thread_main()
         int rc = m_pty.poll();
         if (rc == -1 || rc & (POLLERR | POLLHUP))
             break;
-        if (rc & POLLIN) {
-            auto data = m_pty.read();
-            std::lock_guard<std::mutex> guard(m_mutex);
-            m_data += data;
+        if (rc & POLLIN && !m_data_ready.load(std::memory_order_acquire)) {
+            m_read_size = m_pty.read(m_read_buffer.data(), c_read_max);
+            m_data_ready.store(true, std::memory_order::memory_order_release);
             m_window.wakeup();
             std::this_thread::yield();
         }

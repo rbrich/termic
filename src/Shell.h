@@ -19,7 +19,7 @@
 #include "Pty.h"
 #include <xci/graphics/Window.h>
 #include <thread>
-#include <mutex>
+#include <atomic>
 
 namespace xci {
 
@@ -46,8 +46,12 @@ private:
     Pty m_pty;
     pid_t m_pid = -1;
     std::thread m_thread;
-    mutable std::mutex m_mutex;
-    std::string m_data;
+
+    // Synchronized read buffer
+    static constexpr size_t c_read_max = 4 * 1024;
+    std::array<char, c_read_max> m_read_buffer;
+    size_t m_read_size = 0;
+    std::atomic_bool m_data_ready {false};
 };
 
 

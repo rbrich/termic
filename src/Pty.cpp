@@ -165,30 +165,22 @@ int Pty::poll()
 }
 
 
-std::string Pty::read()
+size_t Pty::read(char* buffer, size_t size)
 {
-    std::string buffer(256, '\0');
-    size_t offset = 0;
-    for (;;) {
-        ssize_t nread = ::read(m_master, &buffer[offset],
-                               buffer.size() - offset);
-        if (nread == -1) {
-            if (errno != EAGAIN)
-                log_error("read: {m}");
-            break;
-        }
-        if (nread == 0) {
-            // EOF
-            log_error("Pty slave closed");
-            ::close(m_master);
-            m_master = -1;
-            break;
-        }
-        offset += nread;
-        buffer.resize(offset + 256, '\0');
+    ssize_t nread = ::read(m_master, buffer, size);
+    if (nread == -1) {
+        if (errno != EAGAIN)
+            log_error("read: {m}");
+        return 0;
     }
-    buffer.resize(offset);
-    return buffer;
+    if (nread == 0) {
+        // EOF
+        log_error("Pty slave closed");
+        ::close(m_master);
+        m_master = -1;
+        return 0;
+    }
+    return size_t(nread);
 }
 
 
