@@ -3,11 +3,21 @@ XCI Term Control Sequences
 
 This is documentation of control sequences recognized by XCI term.
 
+`SGR 38 ; 2 ; <r> ; <g> ; <b> m`\
+set foreground [24-bit RGB color][truecolor] (each element 0..255)
+
+`SGR 38 ; 5 ; <index> m`\
+set foreground indexed color (index 0..255)
+
+
 ... TODO ...
 
 [ecma-48]: https://www.ecma-international.org/publications/files/ECMA-ST/Ecma-048.pdf
 [vt510]: https://vt100.net/docs/vt510-rm/contents.html
 [xterm]: http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+[dtterm]: http://www2.phys.canterbury.ac.nz/dept/docs/manuals/unix/DEC_4.0e_Docs/HTML/MAN/MAN5/0036____.HTM
 [screen]: https://www.gnu.org/software/screen/manual/html_node/Control-Sequences.html
 [vttest]: http://invisible-island.net/vttest/vttest.html
 [c0c1]: https://en.wikipedia.org/wiki/C0_and_C1_control_codes
+[itu-t416]: https://www.itu.int/rec/dologin_pub.asp?lang=e&id=T-REC-T.416-199303-I!!PDF-E&type=items
+[truecolor]: https://gist.github.com/XVilka/8346728

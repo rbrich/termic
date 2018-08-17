@@ -14,3 +14,9 @@ To test this in a terminal emulator, trap WINCH in Bash
 and watch the size changes:
 
     trap 'echo size `stty size`' WINCH
+
+
+References
+----------
+
+- [The TTY demystified](http://linusakesson.net/programming/tty/)

@@ -390,15 +390,15 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
             switch (p) {
                 case 0:
                     // clear from cursor to the end of the line
-                    erase_in_line(cursor_pos().x, size_in_cells().x - cursor_pos().x);
+                    erase_in_line(cursor_pos().x, 0);
                     break;
                 case 1:
                     // clear from cursor to beginning of the line
-                    erase_in_line(0, cursor_pos().x);
+                    erase_in_line(0, cursor_pos().x + 1);
                     break;
                 case 2:
                     // clear entire line
-                    erase_in_line(0, size_in_cells().x);
+                    erase_in_line(0, 0);
                     break;
                 default:
                     log_warning("Unknown EL param: {}", p);
@@ -510,6 +510,16 @@ void Terminal::decode_sgr(std::string_view params)
         } else if (p >= 30 && p <= 37) {
             set_fg(Color4bit(p - 30));
         } else if (p == 38 && more_params) {
+            // Note that this is semicolon-separated xterm-compatible format.
+            // According to ITU T.416, the parameter list should be colon separated
+            // and should include color space identifier for RGB:
+            //   "\e[38;2:<color-space-id>:<r>:<g>:<b>m"
+            //   "\e[38;5:<index>m"
+            // This is what we accept instead (xterm compatibility):
+            //   "\e[38;2;<r>;<g>;<b>m"
+            //   "\e[38;5;<index>m"
+            // There is also hybrid colon-separated-but-colorspace-less format.
+            // Let's ignore both that and the original standard - nobody use those.
             unsigned p1 = 0;
             more_params = cseq_next_param(params, p1);
             if (p1 == 5 && more_params) {
