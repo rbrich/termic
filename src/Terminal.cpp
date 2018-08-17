@@ -162,7 +162,7 @@ void Terminal::decode_input(const std::string &data)
     auto flush_text = [&text, this]() {
         if (!text.empty()) {
             TRACE("flush_text {} (insert={})", text, bool(m_mode.insert));
-            add_text(text, m_mode.insert);
+            add_text(text, m_mode.insert, m_mode.autowrap);
             text.clear();
         }
     };
@@ -416,7 +416,7 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
             unsigned p = 1;
             cseq_parse_params("ECH", params, p);
             std::string spaces(p, ' ');
-            current_line().add_text(cursor_pos().x, spaces, {} /*attr*/, false /*insert*/);
+            current_line().add_text(cursor_pos().x, spaces, /*attr=*/{}, /*insert=*/false);
             break;
         }
         case 'c':  {  // DA - Device Attributes
@@ -590,6 +590,10 @@ void Terminal::decode_private(char f, std::string_view params)
                           (mode_set ? 132u : 80u));
                 //set_req_cells({mode_set ? 132u : 80u, req_cells().y});
                 return;
+            case 7:
+                // DECAWM - Autowrap Mode
+                m_mode.autowrap = mode_set;
+                break;
             case 47:
                 // Normal / Alternate Screen Buffer (xterm)
                 if (mode_set != m_mode.alternate_screen_buffer) {

@@ -26,7 +26,8 @@ class Terminal: public xci::widgets::TextTerminal {
     using Buffer = widgets::terminal::Buffer;
 
 public:
-    explicit Terminal(const xci::graphics::Window &window) : m_shell(window) {}
+    explicit Terminal(const xci::graphics::Window &window) : m_shell(window)
+    { m_mode.autowrap = true; }
 
     bool start_shell();
 
@@ -72,6 +73,7 @@ private:
     // modes
     struct {
         bool insert : 1;
+        bool autowrap : 1;
         bool bracketed_paste : 1;  // TODO
         bool alternate_screen_buffer : 1;  // Normal / Alternate Screen Buffer
     } m_mode = {};

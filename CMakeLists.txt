@@ -10,6 +10,8 @@ if (NOT xcikit_DIR)
     set(xcikit_DIR /usr/local/lib/cmake/xci)
 endif()
 set(CMAKE_MODULE_PATH ${xcikit_DIR})
+include(XciBuildOptions)
+
 find_package(xcikit REQUIRED)
 find_package(Catch)
 
