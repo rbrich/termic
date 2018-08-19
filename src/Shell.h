@@ -24,16 +24,17 @@
 
 namespace xci {
 
+class Terminal;
+
 
 class Shell {
 public:
-    explicit Shell(const xci::graphics::Window &window) : m_window(window) {}
+    explicit Shell(Terminal &terminal) : m_terminal(terminal) {}
     ~Shell();
 
     bool start();
 
-    bool data_ready() const;
-    std::string_view read();
+    void read();
 
     void write(const std::string& data);
 
@@ -43,7 +44,7 @@ private:
     void thread_main();
 
 private:
-    const xci::graphics::Window& m_window;  // only for wakeup()
+    Terminal& m_terminal;
     Pty m_pty;
     pid_t m_pid = -1;
     std::thread m_thread;
@@ -51,7 +52,6 @@ private:
     // Synchronized read buffer
     static constexpr size_t c_read_max = 64 * 1024;
     std::array<char, c_read_max> m_read_buffer;
-    std::atomic_bool m_data_ready {false};
 };
 
 

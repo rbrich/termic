@@ -18,13 +18,16 @@
 #include <xci/widgets/FpsDisplay.h>
 #include <xci/graphics/Window.h>
 #include <xci/util/file.h>
+#include <xci/util/log.h>
 #include <cstdlib>
 
 using namespace xci::widgets;
 using namespace xci::graphics;
+using namespace xci::util;
 
 int main()
 {
+    Logger::init();
     xci::util::chdir_to_share();
 
     Window& window = Window::default_window();
@@ -53,7 +56,8 @@ int main()
     root.set_focus(terminal);
 
     Bind bind(window, root);
-    window.set_refresh_mode(RefreshMode::OnEvent);
+    window.set_refresh_mode(RefreshMode::OnDemand);
+    window.set_refresh_interval(2);
     window.display();
     return EXIT_SUCCESS;
 }

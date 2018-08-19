@@ -18,8 +18,10 @@
 
 #include "Shell.h"
 #include <xci/widgets/TextTerminal.h>
+#include <xci/widgets/Widget.h>
 #include <xci/graphics/Window.h>
 #include <xci/compat/string_view.h>
+#include <mutex>
 
 namespace xci {
 
@@ -27,13 +29,15 @@ class Terminal: public xci::widgets::TextTerminal {
     using Buffer = widgets::terminal::Buffer;
 
 public:
-    explicit Terminal(const xci::graphics::Window &window) : m_shell(window)
+    explicit Terminal(const xci::graphics::Window &window) : m_window(window)
     { m_mode.autowrap = true; }
 
     bool start_shell();
 
-    void resize(graphics::View& view) override;
     void update(graphics::View& view, std::chrono::nanoseconds elapsed) override;
+    void resize(graphics::View& view) override;
+    void draw(graphics::View& view, widgets::State state) override;
+
     bool key_event(graphics::View& view, const graphics::KeyEvent& ev) override;
     void char_event(graphics::View& view, const graphics::CharEvent& ev) override;
     void scroll_event(graphics::View& view, const graphics::ScrollEvent& ev) override;
@@ -50,7 +54,10 @@ private:
     void decode_private(char f, std::string_view params);
 
 private:
-    Shell m_shell;
+    Shell m_shell {*this};
+    const xci::graphics::Window& m_window;  // only for wakeup()
+    std::mutex m_mutex;
+    std::atomic_bool m_needs_refresh {false};
 
     // Normal / Alternate Screen Buffer
     // These variables contain state of the *other* buffer.

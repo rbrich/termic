@@ -47,13 +47,19 @@ void Terminal::resize(graphics::View &view)
 }
 
 
+void Terminal::draw(View& view, State state)
+{
+    std::lock_guard<std::mutex> lock_guard(m_mutex);
+    TextTerminal::draw(view, state);
+}
+
+
 void Terminal::update(View& view, std::chrono::nanoseconds elapsed)
 {
     TextTerminal::update(view, elapsed);
-    if (m_shell.data_ready()) {
-        auto buffer = m_shell.read();
-        decode_input(buffer);
+    if (m_needs_refresh) {
         view.refresh();
+        m_needs_refresh = false;
     }
 }
 
@@ -166,6 +172,10 @@ void Terminal::scroll_event(View& view, const ScrollEvent& ev)
 
 void Terminal::decode_input(std::string_view data)
 {
+    std::lock_guard<std::mutex> lock_guard(m_mutex);
+    m_needs_refresh = true;
+    m_window.wakeup();
+
     using S = InputState;
     std::string text;
     auto flush_text = [&text, this]() {

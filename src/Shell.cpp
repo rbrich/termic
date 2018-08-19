@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include "Shell.h"
+#include "Terminal.h"
 #include <xci/util/log.h>
 #include <unistd.h>
 #include <poll.h>
@@ -65,17 +66,11 @@ bool Shell::start()
 }
 
 
-bool Shell::data_ready() const
-{
-    return m_data_ready.load(std::memory_order_acquire);
-}
-
-
-std::string_view Shell::read()
+void Shell::read()
 {
     size_t read_size = m_pty.read(m_read_buffer.data(), c_read_max);
-    m_data_ready.store(false, std::memory_order::memory_order_release);
-    return {m_read_buffer.data(), read_size};
+
+    m_terminal.decode_input({m_read_buffer.data(), read_size});
 }
 
 
@@ -92,10 +87,7 @@ void Shell::thread_main()
         if (rc == -1 || rc & (POLLERR | POLLHUP))
             break;
         if (rc & POLLIN) {
-            m_data_ready.store(true, std::memory_order::memory_order_release);
-            m_window.wakeup();
-            while (m_data_ready.load(std::memory_order_acquire))
-                std::this_thread::sleep_for(10ms);
+            read();
         }
     }
     int wstatus;
@@ -104,7 +96,8 @@ void Shell::thread_main()
         log_info("Shell exited: {}", WEXITSTATUS(wstatus));
     if (WIFSIGNALED(wstatus))
         log_warning("Shell killed: {}", WTERMSIG(wstatus));
-    m_window.close();
+    //FIXME: close the window when shell exits
+    //m_window.close();
 }
 
 
