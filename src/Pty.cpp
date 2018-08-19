@@ -40,7 +40,7 @@ Pty::~Pty()
 
 bool Pty::open()
 {
-    m_master = posix_openpt(O_RDWR | O_NONBLOCK);
+    m_master = posix_openpt(O_RDWR);
     if (m_master == -1) {
         log_error("posix_openpt: {m}");
         return false;
@@ -56,9 +56,9 @@ bool Pty::open()
         return false;
     }
 
-#ifdef __linux__
-    // Might be needed on Linux. Did not try yet.
-    if (fcntl(m_master, F_SETFL, O_NONBLOCK) == -1) {
+    // Blocking mode is fine by now
+#if 0
+    if (fcntl(m_master, F_SETFL, fcntl(m_master, F_GETFL) | O_NONBLOCK) == -1) {
         log_error("fcntl: {m}");
         return false;
     }

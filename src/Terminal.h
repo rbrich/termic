@@ -41,7 +41,7 @@ public:
     // Decode input from shell. Data are mix of UTF-8 text,
     // control codes and escape sequences. This will call
     // other methods like add_text, set_color for each fragment of data.
-    void decode_input(const std::string& data);
+    void decode_input(std::string_view data);
 
 private:
 

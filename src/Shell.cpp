@@ -71,12 +71,11 @@ bool Shell::data_ready() const
 }
 
 
-std::string Shell::read()
+std::string_view Shell::read()
 {
-    assert(m_data_ready.load(std::memory_order_acquire));
-    std::string result(m_read_buffer.data(), m_read_size);
+    size_t read_size = m_pty.read(m_read_buffer.data(), c_read_max);
     m_data_ready.store(false, std::memory_order::memory_order_release);
-    return result;
+    return {m_read_buffer.data(), read_size};
 }
 
 
@@ -92,11 +91,11 @@ void Shell::thread_main()
         int rc = m_pty.poll();
         if (rc == -1 || rc & (POLLERR | POLLHUP))
             break;
-        if (rc & POLLIN && !m_data_ready.load(std::memory_order_acquire)) {
-            m_read_size = m_pty.read(m_read_buffer.data(), c_read_max);
+        if (rc & POLLIN) {
             m_data_ready.store(true, std::memory_order::memory_order_release);
             m_window.wakeup();
-            std::this_thread::yield();
+            while (m_data_ready.load(std::memory_order_acquire))
+                std::this_thread::sleep_for(10ms);
         }
     }
     int wstatus;

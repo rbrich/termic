@@ -164,7 +164,7 @@ void Terminal::scroll_event(View& view, const ScrollEvent& ev)
 }
 
 
-void Terminal::decode_input(const std::string &data)
+void Terminal::decode_input(std::string_view data)
 {
     using S = InputState;
     std::string text;

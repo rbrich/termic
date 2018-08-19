@@ -18,6 +18,7 @@
 
 #include "Pty.h"
 #include <xci/graphics/Window.h>
+#include <xci/compat/string_view.h>
 #include <thread>
 #include <atomic>
 
@@ -32,7 +33,7 @@ public:
     bool start();
 
     bool data_ready() const;
-    std::string read();
+    std::string_view read();
 
     void write(const std::string& data);
 
@@ -48,9 +49,8 @@ private:
     std::thread m_thread;
 
     // Synchronized read buffer
-    static constexpr size_t c_read_max = 4 * 1024;
+    static constexpr size_t c_read_max = 64 * 1024;
     std::array<char, c_read_max> m_read_buffer;
-    size_t m_read_size = 0;
     std::atomic_bool m_data_ready {false};
 };
 
