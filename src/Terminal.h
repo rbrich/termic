@@ -19,6 +19,7 @@
 #include "Shell.h"
 #include <xci/widgets/TextTerminal.h>
 #include <xci/graphics/Window.h>
+#include <xci/compat/string_view.h>
 
 namespace xci {
 
@@ -32,7 +33,7 @@ public:
     bool start_shell();
 
     void resize(graphics::View& view) override;
-    void update(std::chrono::nanoseconds elapsed) override;
+    void update(graphics::View& view, std::chrono::nanoseconds elapsed) override;
     bool key_event(graphics::View& view, const graphics::KeyEvent& ev) override;
     void char_event(graphics::View& view, const graphics::CharEvent& ev) override;
     void scroll_event(graphics::View& view, const graphics::ScrollEvent& ev) override;

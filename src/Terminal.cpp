@@ -47,12 +47,13 @@ void Terminal::resize(graphics::View &view)
 }
 
 
-void Terminal::update(std::chrono::nanoseconds elapsed)
+void Terminal::update(View& view, std::chrono::nanoseconds elapsed)
 {
-    TextTerminal::update(elapsed);
+    TextTerminal::update(view, elapsed);
     if (m_shell.data_ready()) {
         auto buffer = m_shell.read();
         decode_input(buffer);
+        view.refresh();
     }
 }
 
@@ -94,6 +95,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
         }
         m_shell.write(seq);
         cancel_scrollback();
+        view.refresh();
         return true;
     }
 
@@ -107,6 +109,8 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             return false;
         }
         m_shell.write(seq);
+        cancel_scrollback();
+        view.refresh();
         return true;
     }
 
@@ -127,14 +131,17 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             case Key::C:
                 // TODO: select & copy
                 view.window()->set_clipboard_string("Hello!");
-                return true;
+                break;
             case Key::V:
                 // Clipboard paste
                 m_shell.write(view.window()->get_clipboard_string());
-                return true;
+                break;
             default:
                 return false;
         }
+        cancel_scrollback();
+        view.refresh();
+        return true;
     }
 
     return false;
@@ -145,6 +152,7 @@ void Terminal::char_event(View &view, const CharEvent &ev)
 {
     log_debug("Input char: {}", ev.code_point);
     m_shell.write(to_utf8(ev.code_point));
+    view.refresh();
 }
 
 
@@ -152,6 +160,7 @@ void Terminal::scroll_event(View& view, const ScrollEvent& ev)
 {
     log_debug("Scroll: {}", ev.offset);
     scrollback(ev.offset.y * 3.0);
+    view.refresh();
 }
 
 

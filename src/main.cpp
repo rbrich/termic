@@ -15,6 +15,7 @@
 
 #include "Terminal.h"
 #include <xci/widgets/Theme.h>
+#include <xci/widgets/FpsDisplay.h>
 #include <xci/graphics/Window.h>
 #include <xci/util/file.h>
 #include <cstdlib>
@@ -32,18 +33,26 @@ int main()
     if (!Theme::load_default_theme())
         return EXIT_FAILURE;
 
-    xci::Terminal terminal(window);
-    if (!terminal.start_shell())
+    auto terminal = std::make_shared<xci::Terminal>(window);
+    if (!terminal->start_shell())
         return EXIT_FAILURE;
 
+    auto fps_display = std::make_shared<FpsDisplay>();
+
     // Make the terminal fullscreen
-    window.set_size_callback([&](View& v) {
-        auto s = v.scalable_size();
-        terminal.set_position({-s * 0.5});
-        terminal.set_size(s);
+    window.set_size_callback([terminal, fps_display](View& view) {
+        auto s = view.scalable_size();
+        terminal->set_position({-s * 0.5});
+        terminal->set_size(s);
+        fps_display->set_position({s.x * 0.5f - 0.51f, -s.y * 0.5f + 0.01f});
     });
 
-    Bind bind(window, terminal);
+    Composite root;
+    root.add(terminal);
+    root.add(fps_display);
+    root.set_focus(terminal);
+
+    Bind bind(window, root);
     window.set_refresh_mode(RefreshMode::OnEvent);
     window.display();
     return EXIT_SUCCESS;
