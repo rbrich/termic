@@ -80,8 +80,9 @@ private:
 
     // modes
     struct {
-        bool insert : 1;
-        bool autowrap : 1;
+        bool insert : 1;  // SM 4
+        bool app_cursor_keys : 1;  // DECSET 1
+        bool autowrap : 1;  // DECSET 7
         bool bracketed_paste : 1;  // TODO
         bool alternate_screen_buffer : 1;  // Normal / Alternate Screen Buffer
     } m_mode = {};

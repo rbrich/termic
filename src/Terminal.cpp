@@ -77,12 +77,16 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             case Key::KeypadEnter: seq = "\n"; break;
             case Key::Backspace: seq = "\b"; break;
             case Key::Tab: seq = "\t"; break;
-            case Key::Up: seq = "\033[A"; break;  // CSI A
-            case Key::Down: seq = "\033[B"; break;  // CSI B
-            case Key::Right: seq = "\033[C"; break;  // CSI C
-            case Key::Left: seq = "\033[D"; break;  // CSI D
-            case Key::Home: seq = "\033[H"; break;  // CSI H
-            case Key::End: seq = "\033[F"; break;  // CSI F
+            case Key::Up: seq = m_mode.app_cursor_keys ? "\033OA" : "\033[A"; break;  // SS3 A / CSI A
+            case Key::Down: seq = m_mode.app_cursor_keys ? "\033OB" : "\033[B"; break;  // SS3 B / CSI B
+            case Key::Right: seq = m_mode.app_cursor_keys ? "\033OC" : "\033[C"; break;  // SS3 C / CSI C
+            case Key::Left: seq = m_mode.app_cursor_keys ? "\033OD" : "\033[D"; break;  // SS3 D / CSI D
+            case Key::Home: seq = m_mode.app_cursor_keys ? "\033OH" : "\033[H"; break;  // SS3 H / CSI H
+            case Key::End: seq = m_mode.app_cursor_keys ? "\033OF" : "\033[F"; break;  // SS3 F / CSI F
+            case Key::PageUp: seq = "\033[5~"; break;  // CSI 5 ~
+            case Key::PageDown: seq = "\033[6~"; break;  // CSI 6 ~
+            case Key::Insert: seq = "\033[2~"; break;  // CSI 2 ~
+            case Key::Delete: seq = "\033[3~"; break;  // CSI 3 ~
             case Key::F1: seq = "\033OP"; break;  // SS3 P
             case Key::F2: seq = "\033OQ"; break;  // SS3 Q
             case Key::F3: seq = "\033OR"; break;  // SS3 R
@@ -500,7 +504,7 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
             unsigned bottom = 0;
             cseq_parse_params("DECSTBM", params, top, bottom);
             set_cursor_pos({0, 0});
-            log_debug("DECSTBM: {} {} (not implemented)", top, bottom);
+            log_debug("DECSTBM (Set Scrolling Region): {} {} (not implemented)", top, bottom);
             break;
         }
         default:
@@ -603,6 +607,10 @@ void Terminal::decode_private(char f, std::string_view params)
         params.remove_prefix(1);
         cseq_parse_params(mode_set ? "DECSET" : "DECRST", params, mode);
         switch (mode) {
+            case 1:
+                // DECCKM - Cursor Keys Mode
+                m_mode.app_cursor_keys = mode_set;
+                break;
             case 3:
                 // DECCOLM - 80 / 132 Column Mode
                 log_debug("Terminal: request for {} column mode ignored",
