@@ -52,12 +52,14 @@ private:
     void decode_ctlseq(char c, std::string_view params);
     void decode_sgr(std::string_view params);
     void decode_private(char f, std::string_view params);
+    void flush_text();
 
 private:
     Shell m_shell {*this};
     const xci::graphics::Window& m_window;  // only for wakeup()
     std::mutex m_mutex;
     std::atomic_bool m_needs_refresh {false};
+    std::string m_input_text;
 
     // Normal / Alternate Screen Buffer
     // These variables contain state of the *other* buffer.

@@ -181,14 +181,6 @@ void Terminal::decode_input(std::string_view data)
     m_window.wakeup();
 
     using S = InputState;
-    std::string text;
-    auto flush_text = [&text, this]() {
-        if (!text.empty()) {
-            TRACE("flush_text {} (insert={})", text, bool(m_mode.insert));
-            add_text(text, m_mode.insert, m_mode.autowrap);
-            text.clear();
-        }
-    };
     for (char c : data) {
         switch (m_input_state) {
             case S::Normal:
@@ -201,7 +193,7 @@ void Terminal::decode_input(std::string_view data)
                         set_cursor_pos(cursor_pos() - Vec2u{1, 0});
                         break;
                     case 9:   // HT
-                        text += "   ";
+                        m_input_text += "   ";
                         break;
                     case 10:  // LF
                         // cursor down / new line
@@ -221,7 +213,7 @@ void Terminal::decode_input(std::string_view data)
                         if (c >= 0 && c < 32)
                             log_debug("Unknown cc: {}", int(c));
                         else
-                            text += c;
+                            m_input_text += c;
                         break;
                 }
                 break;
@@ -669,6 +661,22 @@ void Terminal::decode_private(char f, std::string_view params)
         }
     }
     log_debug("Unknown private seq {}", params);
+}
+
+
+void Terminal::flush_text()
+{
+    if (!m_input_text.empty()) {
+        std::string_view sv(m_input_text);
+        // Check if there is partial UTF-8 character at the end
+        size_t partial = utf8_partial_end(sv);
+        if (sv.size() == partial)
+            return;
+        sv.remove_suffix(partial);
+        TRACE("flush_text {} (insert={})", text, bool(m_mode.insert));
+        add_text(sv, m_mode.insert, m_mode.autowrap);
+        m_input_text.erase(0, sv.size());
+    }
 }
 
 
