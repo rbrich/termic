@@ -14,12 +14,12 @@
 // limitations under the License.
 
 #include "utility.h"
-#include <xci/util/log.h>
+#include <xci/core/log.h>
 #include <cstdlib>
 
 namespace xci {
 
-using namespace xci::util::log;
+using namespace xci::core::log;
 
 
 bool cseq_next_param(std::string_view& params, unsigned& p)

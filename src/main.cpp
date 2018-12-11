@@ -17,20 +17,22 @@
 #include <xci/widgets/Theme.h>
 #include <xci/widgets/FpsDisplay.h>
 #include <xci/graphics/Window.h>
-#include <xci/util/file.h>
-#include <xci/util/log.h>
+#include <xci/core/file.h>
+#include <xci/core/log.h>
+#include <xci/core/Vfs.h>
+#include <xci/config.h>
 #include <cstdlib>
 
 using namespace xci::widgets;
 using namespace xci::graphics;
-using namespace xci::util;
+using namespace xci::core;
 
 int main()
 {
     Logger::init();
-    xci::util::chdir_to_share();
+    Vfs::default_instance().mount(XCI_SHARE_DIR);
 
-    Window& window = Window::default_window();
+    Window& window = Window::default_instance();
     window.create({800, 600}, "XCI Term");
 
     if (!Theme::load_default_theme())
@@ -45,7 +47,7 @@ int main()
     // Make the terminal fullscreen
     window.set_size_callback([terminal, fps_display](View& view) {
         auto s = view.scalable_size();
-        terminal->set_position({-s * 0.5});
+        terminal->set_position({-s * 0.5f});
         terminal->set_size(s);
         fps_display->set_position({s.x * 0.5f - 0.51f, -s.y * 0.5f + 0.01f});
     });

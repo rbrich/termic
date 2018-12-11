@@ -15,7 +15,7 @@
 
 #include "Shell.h"
 #include "Terminal.h"
-#include <xci/util/log.h>
+#include <xci/core/log.h>
 #include <unistd.h>
 #include <poll.h>
 #include <chrono>
@@ -26,7 +26,7 @@
 #include <sys/wait.h>
 
 using namespace std::chrono_literals;
-using namespace xci::util::log;
+using namespace xci::core::log;
 
 namespace xci {
 

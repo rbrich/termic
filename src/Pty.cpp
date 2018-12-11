@@ -15,7 +15,7 @@
 
 #include "Pty.h"
 
-#include <xci/util/log.h>
+#include <xci/core/log.h>
 
 #include <stdlib.h>
 #include <fcntl.h>
@@ -26,7 +26,7 @@
 #include <termios.h>
 #include <csignal>
 
-using namespace xci::util::log;
+using namespace xci::core::log;
 
 namespace xci {
 
@@ -195,7 +195,7 @@ void Pty::write(const std::string &data)
 }
 
 
-void Pty::set_winsize(util::Vec2u size_chars)
+void Pty::set_winsize(core::Vec2u size_chars)
 {
     winsize ws = {};
     ws.ws_row = (unsigned short)(size_chars.y);

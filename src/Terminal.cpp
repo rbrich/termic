@@ -15,15 +15,15 @@
 
 #include "Terminal.h"
 #include "utility.h"
-#include <xci/util/log.h>
-#include <xci/util/string.h>
+#include <xci/core/log.h>
+#include <xci/core/string.h>
 #include <sstream>
 #include <cstdlib>
 
 namespace xci {
 
-using namespace xci::util;
-using namespace xci::util::log;
+using namespace xci::core;
+using namespace xci::core::log;
 using namespace xci::graphics;
 using namespace xci::widgets;
 using namespace std::chrono_literals;

@@ -6,14 +6,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13.4")
 
-if (NOT xcikit_DIR)
-    set(xcikit_DIR /usr/local/lib/cmake/xci)
+if (EXISTS ${CMAKE_BINARY_DIR}/conan_paths.cmake)
+    include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
 endif()
-set(CMAKE_MODULE_PATH ${xcikit_DIR})
-include(XciBuildOptions)
 
 find_package(xcikit REQUIRED)
 find_package(Catch)
+
+include(XciBuildOptions)
 
 add_executable(xciterm
     src/main.cpp
@@ -22,7 +22,9 @@ add_executable(xciterm
     src/Terminal.cpp
     src/utility.cpp
     src/utility.h)
-target_link_libraries(xciterm xcikit::xci-widgets)
+target_link_libraries(xciterm
+    xcikit::xci-widgets
+    xcikit::xci-graphics-opengl)
 
 if (Catch_FOUND)
     enable_testing()

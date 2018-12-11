@@ -18,9 +18,9 @@
 
 #include "Pty.h"
 #include <xci/graphics/Window.h>
-#include <xci/compat/string_view.h>
 #include <thread>
 #include <atomic>
+#include <array>
 
 namespace xci {
 

@@ -20,7 +20,7 @@
 #include <xci/widgets/TextTerminal.h>
 #include <xci/widgets/Widget.h>
 #include <xci/graphics/Window.h>
-#include <xci/compat/string_view.h>
+#include <absl/strings/string_view.h>
 #include <mutex>
 
 namespace xci {
@@ -45,13 +45,13 @@ public:
     // Decode input from shell. Data are mix of UTF-8 text,
     // control codes and escape sequences. This will call
     // other methods like add_text, set_color for each fragment of data.
-    void decode_input(std::string_view data);
+    void decode_input(absl::string_view data);
 
 private:
 
-    void decode_ctlseq(char c, std::string_view params);
-    void decode_sgr(std::string_view params);
-    void decode_private(char f, std::string_view params);
+    void decode_ctlseq(char c, absl::string_view params);
+    void decode_sgr(absl::string_view params);
+    void decode_private(char f, absl::string_view params);
     void flush_text();
 
 private:
@@ -65,7 +65,7 @@ private:
     // These variables contain state of the *other* buffer.
     // Current buffer and cursor is inside TextTerminal instance.
     std::unique_ptr<Buffer> m_alternate_buffer = std::make_unique<Buffer>();
-    util::Vec2u m_saved_cursor;
+    core::Vec2u m_saved_cursor;
 
     enum class InputState {
         Normal,

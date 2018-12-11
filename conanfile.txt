@@ -1,0 +1,6 @@
+[requires]
+xcikit/0.1@rbrich/stable
+catch2/2.2.2@bincrafters/stable
+
+[generators]
+cmake_paths
