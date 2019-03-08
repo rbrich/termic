@@ -11,7 +11,7 @@ if (EXISTS ${CMAKE_BINARY_DIR}/conan_paths.cmake)
 endif()
 
 find_package(xcikit REQUIRED)
-find_package(Catch)
+find_package(Catch2)
 
 include(XciBuildOptions)
 

@@ -174,7 +174,7 @@ void Terminal::scroll_event(View& view, const ScrollEvent& ev)
 }
 
 
-void Terminal::decode_input(std::string_view data)
+void Terminal::decode_input(string_view data)
 {
     std::lock_guard<std::mutex> lock_guard(m_mutex);
     m_needs_refresh = true;
@@ -300,7 +300,7 @@ void Terminal::decode_input(std::string_view data)
                 }
                 flush_text();
                 // Remove CSI at start and command char at the end
-                std::string_view params = m_input_seq;
+                string_view params = m_input_seq;
                 params.remove_prefix(2);
                 params.remove_suffix(1);
                 TRACE("CSI {} {}", params, c);
@@ -333,7 +333,7 @@ void Terminal::decode_input(std::string_view data)
 }
 
 
-void Terminal::decode_ctlseq(char c, std::string_view params)
+void Terminal::decode_ctlseq(char c, string_view params)
 {
     switch (c) {
         case 'A': {  // CUU - Cursor Up
@@ -506,7 +506,7 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
 }
 
 
-void Terminal::decode_sgr(std::string_view params)
+void Terminal::decode_sgr(string_view params)
 {
     bool more_params = true;
     while (more_params) {
@@ -589,7 +589,7 @@ void Terminal::decode_sgr(std::string_view params)
 }
 
 
-void Terminal::decode_private(char f, std::string_view params)
+void Terminal::decode_private(char f, string_view params)
 {
     if (!params.empty() && params[0] == '?' && (f == 'h' || f == 'l')) {
         // DECSET - DEC Private Mode Set [CSI ? <mode> h]
@@ -667,7 +667,7 @@ void Terminal::decode_private(char f, std::string_view params)
 void Terminal::flush_text()
 {
     if (!m_input_text.empty()) {
-        std::string_view sv(m_input_text);
+        string_view sv(m_input_text);
         // Check if there is partial UTF-8 character at the end
         size_t partial = utf8_partial_end(sv);
         if (sv.size() == partial)

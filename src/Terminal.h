@@ -20,7 +20,7 @@
 #include <xci/widgets/TextTerminal.h>
 #include <xci/widgets/Widget.h>
 #include <xci/graphics/Window.h>
-#include <absl/strings/string_view.h>
+#include <xci/compat/string_view.h>
 #include <mutex>
 
 namespace xci {
@@ -45,13 +45,13 @@ public:
     // Decode input from shell. Data are mix of UTF-8 text,
     // control codes and escape sequences. This will call
     // other methods like add_text, set_color for each fragment of data.
-    void decode_input(absl::string_view data);
+    void decode_input(string_view data);
 
 private:
 
-    void decode_ctlseq(char c, absl::string_view params);
-    void decode_sgr(absl::string_view params);
-    void decode_private(char f, absl::string_view params);
+    void decode_ctlseq(char c, string_view params);
+    void decode_sgr(string_view params);
+    void decode_private(char f, string_view params);
     void flush_text();
 
 private:
