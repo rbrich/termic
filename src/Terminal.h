@@ -25,6 +25,8 @@
 
 namespace xci {
 
+// Terminal widget. Single Terminal instance can manage single shell session.
+// For multi-terminal program (e.g. tabbed view), multiple instances have to be created.
 class Terminal: public xci::widgets::TextTerminal {
     using Buffer = widgets::terminal::Buffer;
 
@@ -55,7 +57,7 @@ private:
     void flush_text();
 
 private:
-    Shell m_shell {*this};
+    Shell m_shell;
     const xci::graphics::Window& m_window;  // only for wakeup()
     std::mutex m_mutex;
     std::atomic_bool m_needs_refresh {false};

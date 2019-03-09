@@ -31,7 +31,9 @@ using namespace std::chrono_literals;
 
 bool Terminal::start_shell()
 {
-    return m_shell.start();
+    return m_shell.start(
+            /* read_cb=*/ [this](std::string_view data) { decode_input(data); },
+            /* exit_cb=*/ [this](int status) { m_window.close(); });
 }
 
 

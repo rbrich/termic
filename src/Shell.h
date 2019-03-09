@@ -18,23 +18,27 @@
 
 #include "Pty.h"
 #include <xci/graphics/Window.h>
+#include <xci/compat/string_view.h>
 #include <thread>
 #include <atomic>
 #include <array>
+#include <functional>
 
 namespace xci {
 
 class Terminal;
 
 
+// Run actual shell (e.g. Bash) in child process,
+// with established PTY.
 class Shell {
 public:
-    explicit Shell(Terminal &terminal) : m_terminal(terminal) {}
     ~Shell();
 
-    bool start();
+    using ReadCallback = std::function<void(std::string_view)>;
+    using ExitCallback = std::function<void(int status)>;
 
-    void read();
+    bool start(ReadCallback read_cb, ExitCallback exit_cb);
 
     void write(const std::string& data);
 
@@ -42,16 +46,18 @@ public:
 
 private:
     void thread_main();
+    void read();
 
 private:
-    Terminal& m_terminal;
     Pty m_pty;
     pid_t m_pid = -1;
     std::thread m_thread;
+    ReadCallback m_read_cb;
+    ExitCallback m_exit_cb;
 
     // Synchronized read buffer
     static constexpr size_t c_read_max = 64 * 1024;
-    std::array<char, c_read_max> m_read_buffer;
+    std::array<char, c_read_max> m_read_buffer {};
 };
 
 

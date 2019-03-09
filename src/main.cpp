@@ -59,7 +59,7 @@ int main()
 
     Bind bind(window, root);
     window.set_refresh_mode(RefreshMode::OnDemand);
-    window.set_refresh_interval(2);
+    window.set_refresh_interval(0);
     window.display();
     return EXIT_SUCCESS;
 }

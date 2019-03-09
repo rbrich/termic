@@ -1,6 +1,9 @@
 [requires]
 xcikit/0.1@rbrich/stable
-catch2/2.2.2@bincrafters/stable
+Catch2/2.6.1@catchorg/stable
 
 [generators]
 cmake_paths
+
+[options]
+xcikit:shared=True

@@ -39,15 +39,16 @@ Shell::~Shell()
 }
 
 
-bool Shell::start()
+bool Shell::start(ReadCallback read_cb, ExitCallback exit_cb)
 {
     if (!m_pty.open())
         return false;
 
-    pid_t pid = m_pty.fork();
-    if (pid == -1)
+    m_pid = m_pty.fork();
+    if (m_pid == -1)
         return false;
-    if (pid == 0) {
+
+    if (m_pid == 0) {
         // child
         ::setenv("TERM", "xterm", 1);
         auto* shell = getpwuid(getuid())->pw_shell;
@@ -55,14 +56,15 @@ bool Shell::start()
             log_error("execlp: {m}");
             _exit(-1);
         }
-        assert(!"not reached");
-        _exit(-1);
+        __builtin_unreachable();
+    } else {
+        // parent
+        assert(m_pid > 0);
+        m_read_cb = std::move(read_cb);
+        m_exit_cb = std::move(exit_cb);
+        m_thread = std::thread([this]() { thread_main(); });
+        return true;
     }
-
-    // parent
-    m_pid = pid;
-    m_thread = std::thread([this]() { thread_main(); });
-    return true;
 }
 
 
@@ -70,7 +72,8 @@ void Shell::read()
 {
     size_t read_size = m_pty.read(m_read_buffer.data(), c_read_max);
 
-    m_terminal.decode_input({m_read_buffer.data(), read_size});
+    if (m_read_cb)
+        m_read_cb({m_read_buffer.data(), read_size});
 }
 
 
@@ -96,8 +99,9 @@ void Shell::thread_main()
         log_info("Shell exited: {}", WEXITSTATUS(wstatus));
     if (WIFSIGNALED(wstatus))
         log_warning("Shell killed: {}", WTERMSIG(wstatus));
-    //FIXME: close the window when shell exits
-    //m_window.close();
+
+    if (m_exit_cb)
+        m_exit_cb(wstatus);
 }
 
 

@@ -22,6 +22,7 @@
 namespace xci {
 
 
+// Open pseudo-terminal and fork slave process.
 class Pty {
 public:
     ~Pty();
