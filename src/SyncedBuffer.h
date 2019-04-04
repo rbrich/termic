@@ -16,8 +16,7 @@
 #ifndef XCITERM_SYNCEDBUFFER_H
 #define XCITERM_SYNCEDBUFFER_H
 
-#include <mutex>
-#include <condition_variable>
+#include <atomic>
 #include <array>
 #include <cstddef>  // size_t
 
@@ -53,17 +52,8 @@ public:
     };
 
     WBuf write_buffer() {
-        int w, r;
-        {
-            std::unique_lock<std::mutex> lk(m_mutex);
-            w = m_write_p;
-            r = m_read_p;
-            if (r == w+1) {
-                // full buffer
-                m_cond.wait(lk, [this]{ return m_read_p != m_write_p + 1; });
-            }
-        }
-
+        auto w = m_write_p.load(std::memory_order_acquire);
+        auto r = m_read_p.load(std::memory_order_acquire);
         if (r <= w) {
             return {m_buffer.data() + w, m_buffer.size() - w};
         } else {  // r > w
@@ -74,11 +64,9 @@ public:
     void bytes_written(const WBuf& v) {
         int w = v.data - m_buffer.data();
         if (w + v.size == m_buffer.size()) {
-            std::lock_guard<std::mutex> lk(m_mutex);
-            m_write_p = 0;
+            m_write_p.store(0, std::memory_order_release);
         } else {
-            std::lock_guard<std::mutex> lk(m_mutex);
-            m_write_p = w + v.size;
+            m_write_p.store(w + v.size, std::memory_order_release);
         }
     }
 
@@ -87,43 +75,31 @@ public:
     struct RBuf {
         const char* data;
         std::size_t size;
-        bool was_full;
     };
 
-    RBuf read_buffer() {
-        int w, r;
-        {
-            std::lock_guard<std::mutex> lk(m_mutex);
-            w = m_write_p;
-            r = m_read_p;
-        }
-
+    RBuf read_buffer() const {
+        auto w = m_write_p.load(std::memory_order_acquire);
+        auto r = m_read_p.load(std::memory_order_acquire);
         if (r <= w) {
-            return {m_buffer.data() + r, size_t(w - r), false};
+            return {m_buffer.data() + r, size_t(w - r)};
         } else {
-            return {m_buffer.data() + r, m_buffer.size() - r, (r == w+1)};
+            return {m_buffer.data() + r, m_buffer.size() - r};
         }
     }
 
     void bytes_read(const RBuf& v) {
         int r = v.data - m_buffer.data();
         if (r + v.size == m_buffer.size()) {
-            std::lock_guard<std::mutex> lk(m_mutex);
-            m_read_p = 0;
+            m_read_p.store(0, std::memory_order_release);
         } else {
-            std::lock_guard<std::mutex> lk(m_mutex);
-            m_read_p = r + v.size;
+            m_read_p.store(r + v.size, std::memory_order_release);
         }
-        if (v.was_full)
-            m_cond.notify_one();
     }
 
 private:
-    std::mutex m_mutex;
-    std::condition_variable m_cond;
     std::array<char, 640 * 1024> m_buffer;
-    int m_write_p {0};
-    int m_read_p {0};
+    std::atomic<int> m_write_p {0};
+    std::atomic<int> m_read_p {0};
 };
 
 

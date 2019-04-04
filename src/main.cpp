@@ -62,19 +62,26 @@ int main()
         switch (event) {
             case IOWatch::Event::Read: {
                 auto wb = buffer.write_buffer();
-                auto nread = shell.read(wb.data, wb.size);
-                if (nread > 0) {
-                    wb.size = nread;
-                    buffer.bytes_written(wb);
+                if (wb.size == 0) {
+                    // full buffer
                     window.wakeup();
-#ifdef __APPLE__
-                    // MacOS needs this to give the rendering thread some time slots
+                    //log_debug("full buffer");
                     std::this_thread::sleep_for(50us);
-#else
-                    std::this_thread::yield();
-#endif
                 } else {
-                    shell.join();
+                    auto nread = shell.read(wb.data, wb.size);
+                    if (nread > 0) {
+                        wb.size = nread;
+                        buffer.bytes_written(wb);
+                        window.wakeup();
+#ifdef __APPLE__
+                        // MacOS needs this to give the rendering thread some time slots
+                        std::this_thread::sleep_for(50us);
+#else
+                        std::this_thread::yield();
+#endif
+                    } else {
+                        shell.join();
+                    }
                 }
                 break;
             }
