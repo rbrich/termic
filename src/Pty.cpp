@@ -21,20 +21,21 @@
 #include <fcntl.h>
 #include <cassert>
 #include <unistd.h>
-#include <poll.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <csignal>
 
 using namespace xci::core::log;
 
-namespace xci {
+namespace xci::term {
 
 
-Pty::~Pty()
+void Pty::close()
 {
-    if (m_master != -1)
+    if (m_master != -1) {
         ::close(m_master);
+        m_master = -1;
+    }
 }
 
 
@@ -42,27 +43,19 @@ bool Pty::open()
 {
     m_master = posix_openpt(O_RDWR);
     if (m_master == -1) {
-        log_error("posix_openpt: {m}");
+        log_error("Pty open: posix_openpt: {m}");
         return false;
     }
 
     if (grantpt(m_master) == -1) {
-        log_error("grantpt: {m}");
+        log_error("Pty open: grantpt: {m}");
         return false;
     }
 
     if (unlockpt(m_master) == -1) {
-        log_error("unlockpt: {m}");
+        log_error("Pty open: unlockpt: {m}");
         return false;
     }
-
-    // Blocking mode is fine by now
-#if 0
-    if (fcntl(m_master, F_SETFL, fcntl(m_master, F_GETFL) | O_NONBLOCK) == -1) {
-        log_error("fcntl: {m}");
-        return false;
-    }
-#endif
 
     log_info("Pty open: master {}", m_master);
     return true;
@@ -144,43 +137,18 @@ pid_t Pty::fork()
 }
 
 
-int Pty::poll()
+ssize_t Pty::read(char* buffer, size_t size)
 {
-    pollfd pfd = {
-            m_master, // fd
-            POLLIN, // events
-            0,  // revents
-    };
-
-    int rc = ::poll(&pfd, 1, -1);
-    if (rc == -1) {
-        log_debug("poll: {m}");
-        return -1;
-    }
-    if (rc == 0) {
-        // timeout
-        return 0;
-    }
-    return pfd.revents;
-}
-
-
-size_t Pty::read(char* buffer, size_t size)
-{
-    ssize_t nread = ::read(m_master, buffer, size);
-    if (nread == -1) {
-        if (errno != EAGAIN)
+    for (;;) {
+        ssize_t nread = ::read(m_master, buffer, size);
+        if (nread == -1) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
             log_error("read: {m}");
-        return 0;
+            return -1;
+        }
+        return nread;
     }
-    if (nread == 0) {
-        // EOF
-        log_error("Pty slave closed");
-        ::close(m_master);
-        m_master = -1;
-        return 0;
-    }
-    return size_t(nread);
 }
 
 
@@ -207,4 +175,4 @@ void Pty::set_winsize(core::Vec2u size_chars)
 }
 
 
-} // namespace xci
+} // namespace xci::term

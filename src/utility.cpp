@@ -17,7 +17,7 @@
 #include <xci/core/log.h>
 #include <cstdlib>
 
-namespace xci {
+namespace xci::term {
 
 using namespace xci::core::log;
 
@@ -57,4 +57,4 @@ void cseq_parse_params(const char *name, string_view &params, unsigned& p1, unsi
 }
 
 
-} // namespace xci
+} // namespace xci::term

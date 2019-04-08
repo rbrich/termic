@@ -28,18 +28,17 @@
 using namespace std::chrono_literals;
 using namespace xci::core::log;
 
-namespace xci {
+namespace xci::term {
 
 
 Shell::~Shell()
 {
-    ::kill(m_pid, SIGHUP);
-    if (m_thread.joinable())
-        m_thread.join();
+    stop();
+    join();
 }
 
 
-bool Shell::start(ReadCallback read_cb, ExitCallback exit_cb)
+bool Shell::start()
 {
     if (!m_pty.open())
         return false;
@@ -60,20 +59,21 @@ bool Shell::start(ReadCallback read_cb, ExitCallback exit_cb)
     } else {
         // parent
         assert(m_pid > 0);
-        m_read_cb = std::move(read_cb);
-        m_exit_cb = std::move(exit_cb);
-        m_thread = std::thread([this]() { thread_main(); });
         return true;
     }
 }
 
 
-void Shell::read()
+void Shell::stop()
 {
-    size_t read_size = m_pty.read(m_read_buffer.data(), c_read_max);
+    if (m_pid != -1)
+        ::kill(m_pid, SIGHUP);
+}
 
-    if (m_read_cb)
-        m_read_cb({m_read_buffer.data(), read_size});
+
+ssize_t Shell::read(char* buffer, size_t size)
+{
+    return m_pty.read(buffer, size);
 }
 
 
@@ -83,26 +83,22 @@ void Shell::write(const std::string &data)
 }
 
 
-void Shell::thread_main()
+int Shell::join()
 {
-    while (!m_pty.eof()) {
-        int rc = m_pty.poll();
-        if (rc == -1 || rc & (POLLERR | POLLHUP))
-            break;
-        if (rc & POLLIN) {
-            read();
-        }
-    }
+    m_pty.close();
+    if (m_pid == -1)
+        return 0;
+
     int wstatus;
     waitpid(m_pid, &wstatus, 0);
+    m_pid = -1;
+
     if (WIFEXITED(wstatus))
         log_info("Shell exited: {}", WEXITSTATUS(wstatus));
     if (WIFSIGNALED(wstatus))
         log_warning("Shell killed: {}", WTERMSIG(wstatus));
-
-    if (m_exit_cb)
-        m_exit_cb(wstatus);
+    return wstatus;
 }
 
 
-} // namespace xci
+} // namespace xci::term

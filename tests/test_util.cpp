@@ -1,20 +1,21 @@
 // test_util.cc created on 2018-07-30, part of XCI term
 
 #define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <catch2/catch.hpp>
 #include "utility.h"
 #include <string>
 
-using namespace xci;
+using xci::string_view;
+using namespace xci::term;
 using namespace std::string_literals;
 
 
 TEST_CASE( "cseq_next_param/explicit", "[utility]" )
 {
     auto params = "1;2"s;
-    std::string_view params_view = params;
+    string_view params_view = params;
     bool res;
-    int p;
+    unsigned int p;
     constexpr int dfl = -1;
 
     p = dfl;
@@ -33,9 +34,9 @@ TEST_CASE( "cseq_next_param/explicit", "[utility]" )
 TEST_CASE( "cseq_next_param/with_defaults", "[utility]" )
 {
     auto params = ";1;1234;;"s;
-    std::string_view params_view = params;
+    string_view params_view = params;
     bool res;
-    int p;
+    unsigned int p;
     constexpr int dfl = -1;
 
     p = dfl;

@@ -21,12 +21,12 @@ add_executable(xciterm
     src/Shell.cpp
     src/Terminal.cpp
     src/utility.cpp
-    src/utility.h)
+    )
 target_link_libraries(xciterm
     xcikit::xci-widgets
     xcikit::xci-graphics-opengl)
 
-if (Catch_FOUND)
+if (Catch2_FOUND)
     enable_testing()
     add_subdirectory(tests)
 endif()

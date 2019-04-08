@@ -18,21 +18,21 @@
 
 #include <xci/compat/string_view.h>
 
-namespace xci {
+namespace xci::term {
 
 /// Parses parameter string of control sequence
 /// according to ECMA-48 standard.
-/// \param params [INOUT] A string view with the params.
-///               The parsed prefix will be removed.
-/// \param p      [OUT] The parsed parameter will be put here.
-///               If no digits were parsed, the content won't be modified.
-/// \return       True if there are more parameters to be parsed.
-///               False if this was the last one.
+/// \param[in,out]  params  A string view with the params.
+///                         The parsed prefix will be removed.
+/// \param[out]     p       The parsed parameter will be put here.
+///                         If no digits were parsed, the content won't be modified.
+/// \return         True if there are more parameters to be parsed.
+///                 False if this was the last one.
 bool cseq_next_param(string_view& params, unsigned& p);
 
 void cseq_parse_params(const char* name, string_view& params, unsigned& p1);
 void cseq_parse_params(const char* name, string_view& params, unsigned& p1, unsigned& p2);
 
-} // namespace xci
+} // namespace xci::term
 
 #endif // XCITERM_UTILITY_H

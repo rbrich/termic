@@ -21,9 +21,9 @@
 #include <xci/widgets/Widget.h>
 #include <xci/graphics/Window.h>
 #include <xci/compat/string_view.h>
-#include <mutex>
+#include <xci/core/dispatch.h>
 
-namespace xci {
+namespace xci::term {
 
 // Terminal widget. Single Terminal instance can manage single shell session.
 // For multi-terminal program (e.g. tabbed view), multiple instances have to be created.
@@ -31,14 +31,9 @@ class Terminal: public xci::widgets::TextTerminal {
     using Buffer = widgets::terminal::Buffer;
 
 public:
-    explicit Terminal(const xci::graphics::Window &window) : m_window(window)
-    { m_mode.autowrap = true; }
+    explicit Terminal(Shell& shell) : m_shell(shell) { m_mode.autowrap = true; }
 
-    bool start_shell();
-
-    void update(graphics::View& view, std::chrono::nanoseconds elapsed) override;
     void resize(graphics::View& view) override;
-    void draw(graphics::View& view, widgets::State state) override;
 
     bool key_event(graphics::View& view, const graphics::KeyEvent& ev) override;
     void char_event(graphics::View& view, const graphics::CharEvent& ev) override;
@@ -57,10 +52,7 @@ private:
     void flush_text();
 
 private:
-    Shell m_shell;
-    const xci::graphics::Window& m_window;  // only for wakeup()
-    std::mutex m_mutex;
-    std::atomic_bool m_needs_refresh {false};
+    Shell& m_shell;
     std::string m_input_text;
 
     // Normal / Alternate Screen Buffer
@@ -92,6 +84,6 @@ private:
     } m_mode = {};
 };
 
-} // namespace xci
+} // namespace xci::term
 
 #endif // XCITERM_TERMINAL_H

@@ -19,12 +19,11 @@
 #include "Pty.h"
 #include <xci/graphics/Window.h>
 #include <xci/compat/string_view.h>
-#include <thread>
 #include <atomic>
 #include <array>
 #include <functional>
 
-namespace xci {
+namespace xci::term {
 
 class Terminal;
 
@@ -35,32 +34,24 @@ class Shell {
 public:
     ~Shell();
 
-    using ReadCallback = std::function<void(std::string_view)>;
-    using ExitCallback = std::function<void(int status)>;
+    bool start();
+    void stop();
 
-    bool start(ReadCallback read_cb, ExitCallback exit_cb);
-
+    // following usable after start()
+    int fileno() const { return m_pty.fileno(); }
+    ssize_t read(char* buffer, size_t size);
     void write(const std::string& data);
+    int join();
+    bool is_closed() const { return m_pty.is_closed(); }
 
     Pty& pty() { return m_pty; }
 
 private:
-    void thread_main();
-    void read();
-
-private:
     Pty m_pty;
     pid_t m_pid = -1;
-    std::thread m_thread;
-    ReadCallback m_read_cb;
-    ExitCallback m_exit_cb;
-
-    // Synchronized read buffer
-    static constexpr size_t c_read_max = 64 * 1024;
-    std::array<char, c_read_max> m_read_buffer {};
 };
 
 
-} // namespace xci
+} // namespace xci::term
 
 #endif // XCITERM_SHELL_H
