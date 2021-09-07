@@ -104,11 +104,10 @@ int main()
 
     // Make the terminal fullscreen
     window.set_size_callback([&terminal, &fps_display](View& view) {
-        auto vs = view.viewport_size();
-        auto vc = view.viewport_center();
-        terminal.set_position({vc.x - vs.x * 0.5f, vc.y - vs.y * 0.5f});
-        terminal.set_size(vs);
-        fps_display.set_position({vs.x * 0.5f - 0.51f, -vs.y * 0.5f + 0.01f});
+        auto s = view.viewport_size();
+        terminal.set_size(s);
+        fps_display.set_position({s.x - 120, 20});
+        fps_display.set_size({100, 20});
     });
 
     Composite root(theme);
@@ -118,7 +117,7 @@ int main()
 
     Bind bind(window, root);
     window.set_refresh_mode(RefreshMode::OnDemand);
-    //window.set_view_mode(ViewOrigin::TopLeft, ViewScale::FixedScreenPixels);
+    window.set_view_mode(ViewOrigin::TopLeft, ViewScale::FixedScreenPixels);
     window.display();
 
     dispatch.terminate();
