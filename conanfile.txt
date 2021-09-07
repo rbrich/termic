@@ -1,9 +1,16 @@
 [requires]
-xcikit/0.1@rbrich/stable
-Catch2/2.6.1@catchorg/stable
+xcikit/[^0.8.0]@rbrich/stable
+catch2/2.13.6
+fmt/8.0.1
 
 [generators]
 cmake_paths
+cmake_find_package
 
 [options]
 xcikit:shared=True
+xcikit:script=False
+xcikit:tools=False
+xcikit:examples=False
+xcikit:tests=False
+xcikit:benchmarks=False
