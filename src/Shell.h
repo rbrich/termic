@@ -18,7 +18,6 @@
 
 #include "Pty.h"
 #include <xci/graphics/Window.h>
-#include <xci/compat/string_view.h>
 #include <atomic>
 #include <array>
 #include <functional>

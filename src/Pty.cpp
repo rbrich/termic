@@ -17,7 +17,7 @@
 
 #include <xci/core/log.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <fcntl.h>
 #include <cassert>
 #include <unistd.h>
@@ -25,7 +25,7 @@
 #include <termios.h>
 #include <csignal>
 
-using namespace xci::core::log;
+using namespace xci::core;
 
 namespace xci::term {
 
@@ -43,21 +43,21 @@ bool Pty::open()
 {
     m_master = posix_openpt(O_RDWR);
     if (m_master == -1) {
-        log_error("Pty open: posix_openpt: {m}");
+        log::error("Pty open: posix_openpt: {m}");
         return false;
     }
 
     if (grantpt(m_master) == -1) {
-        log_error("Pty open: grantpt: {m}");
+        log::error("Pty open: grantpt: {m}");
         return false;
     }
 
     if (unlockpt(m_master) == -1) {
-        log_error("Pty open: unlockpt: {m}");
+        log::error("Pty open: unlockpt: {m}");
         return false;
     }
 
-    log_info("Pty open: master {}", m_master);
+    log::info("Pty open: master {}", m_master);
     return true;
 }
 
@@ -65,16 +65,16 @@ bool Pty::open()
 pid_t Pty::fork()
 {
     if (m_master == -1) {
-        log_error("Pty not initialized, cannot fork.");
+        log::error("Pty not initialized, cannot fork.");
         return (pid_t) -1;
     }
     pid_t child_pid = ::fork();
     if (child_pid == (pid_t) -1) {
-        log_error("fork: {m}");
+        log::error("fork: {m}");
         return (pid_t) -1;
     }
     if (child_pid != 0) {
-        log_info("Pty fork: child pid {}", child_pid);
+        log::info("Pty fork: child pid {}", child_pid);
         return child_pid;
     }
 
@@ -83,31 +83,31 @@ pid_t Pty::fork()
     constexpr size_t sn_max = 50;
     char slave_name[sn_max];
     if (ptsname_r(m_master, slave_name, sn_max) != 0) {
-        log_error("ptsname_r: {m}");
+        log::error("ptsname_r: {m}");
         _exit(-1);
     }
-    log_info("Pty fork: slave {}", slave_name);
+    log::info("Pty fork: slave {}", slave_name);
 
     // no longer needed in child
     ::close(m_master);
 
     int slave_fd = ::open(slave_name, O_RDWR);
     if (slave_fd == -1) {
-        log_error("open({}): {m}", slave_name);
+        log::error("open({}): {m}", slave_name);
         _exit(-1);
     }
     assert(slave_fd > STDERR_FILENO);
 
     int session_id = setsid();
     if (session_id == (pid_t) -1) {
-        log_error("setsid: {m}");
+        log::error("setsid: {m}");
         _exit(-1);
     }
 
     // acquire controlling tty on BSD
 #ifdef TIOCSCTTY
     if (ioctl(slave_fd, TIOCSCTTY, 0) == -1) {
-        log_error("ioctl({}, TIOCSCTTY): {m}", slave_fd);
+        log::error("ioctl({}, TIOCSCTTY): {m}", slave_fd);
         _exit(-1);
     }
 #endif
@@ -120,15 +120,15 @@ pid_t Pty::fork()
 
     // Duplicate pty slave to be child's stdin, stdout, and stderr
     if (dup2(slave_fd, STDIN_FILENO) != STDIN_FILENO) {
-        log_error("dup2({}, STDIN_FILENO): {m}", slave_fd);
+        log::error("dup2({}, STDIN_FILENO): {m}", slave_fd);
         _exit(-1);
     }
     if (dup2(slave_fd, STDOUT_FILENO) != STDOUT_FILENO)  {
-        log_error("dup2({}, STDOUT_FILENO): {m}", slave_fd);
+        log::error("dup2({}, STDOUT_FILENO): {m}", slave_fd);
         _exit(-1);
     }
     if (dup2(slave_fd, STDERR_FILENO) != STDERR_FILENO)  {
-        log_error("dup2({}, STDERR_FILENO): {m}", slave_fd);
+        log::error("dup2({}, STDERR_FILENO): {m}", slave_fd);
         _exit(-1);
     }
     ::close(slave_fd);
@@ -144,7 +144,7 @@ ssize_t Pty::read(char* buffer, size_t size)
         if (nread == -1) {
             if (errno == EINTR || errno == EAGAIN)
                 continue;
-            log_error("read: {m}");
+            log::error("read: {m}");
             return -1;
         }
         return nread;
@@ -156,7 +156,7 @@ void Pty::write(const std::string &data)
 {
     ssize_t rc = ::write(m_master, data.data(), data.size());
     if (rc == -1) {
-        log_error("write: {m}");
+        log::error("write: {m}");
         return;
     }
     assert(size_t(rc) == data.size());
@@ -169,7 +169,7 @@ void Pty::set_winsize(core::Vec2u size_chars)
     ws.ws_row = (unsigned short)(size_chars.y);
     ws.ws_col = (unsigned short)(size_chars.x);
     if (ioctl(m_master, TIOCSWINSZ, &ws) == -1) {
-        log_error("ioctl: {m}");
+        log::error("ioctl: {m}");
         return;
     }
 }

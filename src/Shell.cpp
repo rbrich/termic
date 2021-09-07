@@ -26,7 +26,7 @@
 #include <sys/wait.h>
 
 using namespace std::chrono_literals;
-using namespace xci::core::log;
+using namespace xci::core;
 
 namespace xci::term {
 
@@ -52,7 +52,7 @@ bool Shell::start()
         ::setenv("TERM", "xterm", 1);
         auto* shell = getpwuid(getuid())->pw_shell;
         if (execlp(shell, shell, nullptr) == -1) {
-            log_error("execlp: {m}");
+            log::error("execlp: {m}");
             _exit(-1);
         }
         __builtin_unreachable();
@@ -94,9 +94,9 @@ int Shell::join()
     m_pid = -1;
 
     if (WIFEXITED(wstatus))
-        log_info("Shell exited: {}", WEXITSTATUS(wstatus));
+        log::info("Shell exited: {}", WEXITSTATUS(wstatus));
     if (WIFSIGNALED(wstatus))
-        log_warning("Shell killed: {}", WTERMSIG(wstatus));
+        log::warning("Shell killed: {}", WTERMSIG(wstatus));
     return wstatus;
 }
 

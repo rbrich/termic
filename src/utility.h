@@ -16,7 +16,7 @@
 #ifndef XCITERM_UTILITY_H
 #define XCITERM_UTILITY_H
 
-#include <xci/compat/string_view.h>
+#include <string_view>
 
 namespace xci::term {
 
@@ -28,10 +28,10 @@ namespace xci::term {
 ///                         If no digits were parsed, the content won't be modified.
 /// \return         True if there are more parameters to be parsed.
 ///                 False if this was the last one.
-bool cseq_next_param(string_view& params, unsigned& p);
+bool cseq_next_param(std::string_view& params, unsigned& p);
 
-void cseq_parse_params(const char* name, string_view& params, unsigned& p1);
-void cseq_parse_params(const char* name, string_view& params, unsigned& p1, unsigned& p2);
+void cseq_parse_params(const char* name, std::string_view& params, unsigned& p1);
+void cseq_parse_params(const char* name, std::string_view& params, unsigned& p1, unsigned& p2);
 
 } // namespace xci::term
 

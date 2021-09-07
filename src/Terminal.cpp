@@ -17,13 +17,14 @@
 #include "utility.h"
 #include <xci/core/log.h>
 #include <xci/core/string.h>
+#include <fmt/ostream.h>
+#include <iostream>
 #include <sstream>
 #include <cstdlib>
 
 namespace xci::term {
 
 using namespace xci::core;
-using namespace xci::core::log;
 using namespace xci::graphics;
 using namespace xci::widgets;
 using namespace std::chrono_literals;
@@ -35,7 +36,7 @@ void Terminal::resize(graphics::View &view)
     TextTerminal::resize(view);
     auto new_size = size_in_cells();
     if (orig_size != new_size) {
-        log_debug("Terminal: resize {} cells", size_in_cells());
+        log::debug("Terminal: resize {} cells", size_in_cells());
         m_shell.pty().set_winsize(size_in_cells());
     }
 }
@@ -77,7 +78,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             case Key::F11: seq = "\033[23~"; break;  // CSI 2 3 ~
             case Key::F12: seq = "\033[24~"; break;  // CSI 2 4 ~
             default:
-                log_debug("Terminal::key_event: Unhandled key: {}", int(ev.key));
+                log::debug("Terminal::key_event: Unhandled key: {}", int(ev.key));
                 return false;
         }
         m_shell.write(seq);
@@ -92,7 +93,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
             // '\1' .. '\x1d'
             seq = char(int(ev.key) - int(Key::A) + 1);
         } else {
-            log_debug("Terminal::key_event: Unhandled key: Ctrl + {}", int(ev.key));
+            log::debug("Terminal::key_event: Unhandled key: Ctrl + {}", int(ev.key));
             return false;
         }
         m_shell.write(seq);
@@ -108,7 +109,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
                 std::cout << escape(current_line().content()) << std::endl;
                 return true;
             default:
-                log_debug("Terminal::key_event: Unhandled key: Shift + {}", int(ev.key));
+                log::debug("Terminal::key_event: Unhandled key: Shift + {}", int(ev.key));
                 return false;
         }
     }
@@ -137,7 +138,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
 
 void Terminal::char_event(View &view, const CharEvent &ev)
 {
-    log_debug("Input char: {}", ev.code_point);
+    log::debug("Input char: {}", ev.code_point);
     m_shell.write(to_utf8(ev.code_point));
     view.refresh();
 }
@@ -145,13 +146,13 @@ void Terminal::char_event(View &view, const CharEvent &ev)
 
 void Terminal::scroll_event(View& view, const ScrollEvent& ev)
 {
-    log_debug("Scroll: {}", ev.offset);
+    log::debug("Scroll: {}", ev.offset);
     scrollback(ev.offset.y * 3.0);
     view.refresh();
 }
 
 
-void Terminal::decode_input(string_view data)
+void Terminal::decode_input(std::string_view data)
 {
     using S = InputState;
     for (char c : data) {
@@ -184,7 +185,7 @@ void Terminal::decode_input(string_view data)
                         break;
                     default:
                         if (c >= 0 && c < 32)
-                            log_debug("Unknown cc: {}", int(c));
+                            log::debug("Unknown cc: {}", int(c));
                         else
                             m_input_text += c;
                         break;
@@ -237,7 +238,7 @@ void Terminal::decode_input(string_view data)
                         m_input_state = S::OSC;
                         break;
                     default:
-                        log_debug("Unknown seq: ESC {}", c);
+                        log::debug("Unknown seq: ESC {}", c);
                         m_input_seq.clear();
                         m_input_state = S::Normal;
                         break;
@@ -259,7 +260,7 @@ void Terminal::decode_input(string_view data)
                     flush_text();
                     set_cursor_pos({0, 0});
                 } else {
-                    log_debug("Unknown seq: ESC {} {}", m_input_seq.back(), c);
+                    log::debug("Unknown seq: ESC {} {}", m_input_seq.back(), c);
                 }
                 m_input_seq.clear();
                 m_input_state = S::Normal;
@@ -273,7 +274,7 @@ void Terminal::decode_input(string_view data)
                 }
                 flush_text();
                 // Remove CSI at start and command char at the end
-                string_view params = m_input_seq;
+                std::string_view params = m_input_seq;
                 params.remove_prefix(2);
                 params.remove_suffix(1);
                 TRACE("CSI {} {}", params, c);
@@ -296,7 +297,7 @@ void Terminal::decode_input(string_view data)
                     // continue reading OSC control string
                     break;
                 }
-                log_debug("Unknown seq: OSC {} {}", m_input_seq.substr(2), int(c));
+                log::debug("Unknown seq: OSC {} {}", m_input_seq.substr(2), int(c));
                 m_input_seq.clear();
                 m_input_state = S::Normal;
                 break;
@@ -306,7 +307,7 @@ void Terminal::decode_input(string_view data)
 }
 
 
-void Terminal::decode_ctlseq(char c, string_view params)
+void Terminal::decode_ctlseq(char c, std::string_view params)
 {
     switch (c) {
         case 'A': {  // CUU - Cursor Up
@@ -367,7 +368,7 @@ void Terminal::decode_ctlseq(char c, string_view params)
                     erase_buffer();
                     break;
                 default:
-                    log_warning("Unknown ED param: {}", p);
+                    log::warning("Unknown ED param: {}", p);
                     break;
             }
             break;
@@ -389,7 +390,7 @@ void Terminal::decode_ctlseq(char c, string_view params)
                     erase_in_line(0, 0);
                     break;
                 default:
-                    log_warning("Unknown EL param: {}", p);
+                    log::warning("Unknown EL param: {}", p);
                     break;
             }
             break;
@@ -411,7 +412,7 @@ void Terminal::decode_ctlseq(char c, string_view params)
             unsigned p = 0;
             cseq_parse_params("DA", params, p);
             if (p != 0) {
-                log_debug("Unknown DA params: {}{}", p, params);
+                log::debug("Unknown DA params: {}{}", p, params);
                 break;
             }
             // Say we are "VT100 with Advanced Video Option"
@@ -444,7 +445,7 @@ void Terminal::decode_ctlseq(char c, string_view params)
                     m_mode.insert = true;
                     break;
                 default:
-                    log_debug("Unknown SM param: {}", p);
+                    log::debug("Unknown SM param: {}", p);
                     break;
             }
         }
@@ -456,7 +457,7 @@ void Terminal::decode_ctlseq(char c, string_view params)
                     m_mode.insert = false;
                     break;
                 default:
-                    log_debug("Unknown RM param: {}", p);
+                    log::debug("Unknown RM param: {}", p);
                     break;
             }
         }
@@ -469,17 +470,17 @@ void Terminal::decode_ctlseq(char c, string_view params)
             unsigned bottom = 0;
             cseq_parse_params("DECSTBM", params, top, bottom);
             set_cursor_pos({0, 0});
-            log_debug("DECSTBM (Set Scrolling Region): {} {} (not implemented)", top, bottom);
+            log::debug("DECSTBM (Set Scrolling Region): {} {} (not implemented)", top, bottom);
             break;
         }
         default:
-            log_debug("Unknown seq: CSI {} {}", params, c);
+            log::debug("Unknown seq: CSI {} {}", params, c);
             break;
     }
 }
 
 
-void Terminal::decode_sgr(string_view params)
+void Terminal::decode_sgr(std::string_view params)
 {
     bool more_params = true;
     while (more_params) {
@@ -524,7 +525,7 @@ void Terminal::decode_sgr(string_view params)
                         cseq_next_param(params, b);
                 set_fg(Color24bit(uint8_t(r), uint8_t(g), uint8_t(b)));
             } else {
-                log_debug("Unknown SGR {};{}", p, p1);
+                log::debug("Unknown SGR {};{}", p, p1);
             }
         } else if (p == 39) {
             set_fg(c_fg_default);
@@ -547,7 +548,7 @@ void Terminal::decode_sgr(string_view params)
                         cseq_next_param(params, b);
                 set_bg(Color24bit(uint8_t(r), uint8_t(g), uint8_t(b)));
             } else {
-                log_debug("Unknown SGR {};{}", p, p1);
+                log::debug("Unknown SGR {};{}", p, p1);
             }
         } else if (p == 49) {
             set_bg(c_bg_default);
@@ -556,13 +557,13 @@ void Terminal::decode_sgr(string_view params)
         } else if (p >= 100 && p <= 107) {
             set_bg(Color4bit(p - 100 + 8));
         } else {
-            log_debug("Unknown SGR {}", p);
+            log::debug("Unknown SGR {}", p);
         }
     }
 }
 
 
-void Terminal::decode_private(char f, string_view params)
+void Terminal::decode_private(char f, std::string_view params)
 {
     if (!params.empty() && params[0] == '?' && (f == 'h' || f == 'l')) {
         // DECSET - DEC Private Mode Set [CSI ? <mode> h]
@@ -578,7 +579,7 @@ void Terminal::decode_private(char f, string_view params)
                 break;
             case 3:
                 // DECCOLM - 80 / 132 Column Mode
-                log_debug("Terminal: request for {} column mode ignored",
+                log::debug("Terminal: request for {} column mode ignored",
                           (mode_set ? 132u : 80u));
                 //set_req_cells({mode_set ? 132u : 80u, req_cells().y});
                 return;
@@ -625,22 +626,22 @@ void Terminal::decode_private(char f, string_view params)
             case 2004:
                 // bracketed paste mode
                 m_mode.bracketed_paste = mode_set;
-                log_debug("Terminal: bracketed_paste_mode = {}",
+                log::debug("Terminal: bracketed_paste_mode = {}",
                           bool(m_mode.bracketed_paste));
                 return;
             default:
-                log_debug("Unknown DECSET/DECRST: {} {}", mode, f);
+                log::debug("Unknown DECSET/DECRST: {} {}", mode, f);
                 return;
         }
     }
-    log_debug("Unknown private seq {}", params);
+    log::debug("Unknown private seq {}", params);
 }
 
 
 void Terminal::flush_text()
 {
     if (!m_input_text.empty()) {
-        string_view sv(m_input_text);
+        std::string_view sv(m_input_text);
         // Check if there is partial UTF-8 character at the end
         size_t partial = utf8_partial_end(sv);
         if (sv.size() == partial)

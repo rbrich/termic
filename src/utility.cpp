@@ -19,10 +19,10 @@
 
 namespace xci::term {
 
-using namespace xci::core::log;
+using namespace xci::core;
 
 
-bool cseq_next_param(string_view& params, unsigned& p)
+bool cseq_next_param(std::string_view& params, unsigned& p)
 {
     bool p_touched = false;
     while (!params.empty()) {
@@ -43,17 +43,17 @@ bool cseq_next_param(string_view& params, unsigned& p)
 }
 
 
-void cseq_parse_params(const char *name, string_view &params, unsigned& p1)
+void cseq_parse_params(const char *name, std::string_view &params, unsigned& p1)
 {
     if (cseq_next_param(params, p1))
-        log_warning("Excess params for {} ignored: {}", name, params);
+        log::warning("Excess params for {} ignored: {}", name, params);
 }
 
 
-void cseq_parse_params(const char *name, string_view &params, unsigned& p1, unsigned& p2)
+void cseq_parse_params(const char *name, std::string_view &params, unsigned& p1, unsigned& p2)
 {
     if (cseq_next_param(params, p1) && cseq_next_param(params, p2))
-        log_warning("Excess params for {} ignored: {}", name, params);
+        log::warning("Excess params for {} ignored: {}", name, params);
 }
 
 

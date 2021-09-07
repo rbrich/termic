@@ -23,30 +23,36 @@
 #include <xci/core/log.h>
 #include <xci/core/Vfs.h>
 #include <xci/core/dispatch.h>
-#include <xci/core/chrono.h>
 #include <xci/config.h>
+
+#include <chrono>
 #include <cstdlib>
 
 using namespace xci::term;
 using namespace xci::widgets;
 using namespace xci::graphics;
 using namespace xci::core;
+using namespace std::chrono_literals;
 
 int main()
 {
     Logger::init();
-    Vfs::default_instance().mount(XCI_SHARE_DIR);
+    Vfs vfs;
+    if (!vfs.mount(XCI_SHARE_DIR))
+        return EXIT_FAILURE;
 
-    Window& window = Window::default_instance();
+    Renderer renderer {vfs};
+    Window window {renderer};
     window.create({800, 600}, "XCI Term");
 
-    if (!Theme::load_default_theme())
+    Theme theme(renderer);
+    if (!theme.load_default())
         return EXIT_FAILURE;
 
     Dispatch dispatch;
     SyncedBuffer buffer;
     Shell shell;
-    auto terminal = std::make_shared<Terminal>(shell);
+    Terminal terminal (theme, shell);
 
     if (!shell.start())
         return EXIT_FAILURE;
@@ -80,14 +86,14 @@ int main()
         }
     });
 
-    auto fps_display = std::make_shared<FpsDisplay>();
+    FpsDisplay fps_display {theme};
 
     window.set_update_callback(
         [&terminal, &buffer, &shell]
         (View& v, std::chrono::nanoseconds elapsed) {
             auto rb = buffer.read_buffer();
             if (rb.size > 0) {
-                terminal->decode_input({rb.data, rb.size});
+                terminal.decode_input({rb.data, rb.size});
                 buffer.bytes_read(rb);
                 v.refresh();
             }
@@ -97,21 +103,22 @@ int main()
         });
 
     // Make the terminal fullscreen
-    window.set_size_callback([terminal, fps_display](View& view) {
-        auto s = view.scalable_size();
-        terminal->set_position({-s * 0.5f});
-        terminal->set_size(s);
-        fps_display->set_position({s.x * 0.5f - 0.51f, -s.y * 0.5f + 0.01f});
+    window.set_size_callback([&terminal, &fps_display](View& view) {
+        auto vs = view.viewport_size();
+        auto vc = view.viewport_center();
+        terminal.set_position({vc.x - vs.x * 0.5f, vc.y - vs.y * 0.5f});
+        terminal.set_size(vs);
+        fps_display.set_position({vs.x * 0.5f - 0.51f, -vs.y * 0.5f + 0.01f});
     });
 
-    Composite root;
+    Composite root(theme);
     root.add(terminal);
     root.add(fps_display);
     root.set_focus(terminal);
 
     Bind bind(window, root);
     window.set_refresh_mode(RefreshMode::OnDemand);
-    window.set_refresh_interval(1);  // 0 = unlimited, 1 = vsync (60fps max, works fine with OnDemand)
+    //window.set_view_mode(ViewOrigin::TopLeft, ViewScale::FixedScreenPixels);
     window.display();
 
     dispatch.terminate();

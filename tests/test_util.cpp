@@ -5,7 +5,7 @@
 #include "utility.h"
 #include <string>
 
-using xci::string_view;
+using std::string_view;
 using namespace xci::term;
 using namespace std::string_literals;
 
@@ -37,7 +37,7 @@ TEST_CASE( "cseq_next_param/with_defaults", "[utility]" )
     string_view params_view = params;
     bool res;
     unsigned int p;
-    constexpr int dfl = -1;
+    constexpr unsigned int dfl = -1;
 
     p = dfl;
     res = cseq_next_param(params_view, p);
