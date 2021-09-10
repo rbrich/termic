@@ -16,10 +16,11 @@
 namespace xci::term {
 
 
-/// Synchronized circular buffer - single writer, single reader
+/// SPSC-synchronized circular buffer
+/// (single producer, single consumer)
 ///
-/// read_p (R) is read pointer (not real pointer, just a cursor in the buffer)
-/// write_p (W) is write pointer
+/// write_p (W) is write index (head)
+/// read_p (R) is read index (tail)
 /// size (S) is total size of the buffer
 ///
 /// Possible states:
@@ -33,6 +34,12 @@ namespace xci::term {
 ///
 /// Whenever the writer fills the buffer to the end, W is cycled to 0.
 /// Whenever the reader reads to the end of buffer (state 3.), R is cycled to 0.
+///
+/// References:
+/// * https://en.wikipedia.org/wiki/Circular_buffer
+/// * https://www.kernel.org/doc/html/latest/core-api/circular-buffers.html
+///
+/// \tparam Size    size of the buffer
 
 template <size_t Size>
 class CircularBuffer {
@@ -42,8 +49,8 @@ public:
 
     std::span<char> write_buffer() {
         // We're the only writer - W can't change, R may grow or cycle
-        auto w = m_write_p.load(std::memory_order_acquire);
         auto r = m_read_p.load(std::memory_order_acquire);
+        auto w = m_write_p.load(std::memory_order_relaxed);
         if (r <= w) {
             return {m_buffer.data() + w, m_buffer.size() - w};
         } else {  // r > w
@@ -52,7 +59,7 @@ public:
     }
 
     void bytes_written(size_t written) {
-        auto w = m_write_p.load(std::memory_order_acquire);
+        auto w = m_write_p.load(std::memory_order_relaxed);
         if (w + written == m_buffer.size()) {
             m_write_p.store(0, std::memory_order_release);
         } else {
@@ -65,7 +72,7 @@ public:
     std::string_view read_buffer() const {
         // We're the only reader - R can't change, W may grow or cycle
         auto w = m_write_p.load(std::memory_order_acquire);
-        auto r = m_read_p.load(std::memory_order_acquire);
+        auto r = m_read_p.load(std::memory_order_relaxed);
         if (r <= w) {
             return {m_buffer.data() + r, size_t(w - r)};
         } else {  // r > w
@@ -74,7 +81,7 @@ public:
     }
 
     void bytes_read(size_t read) {
-        auto r = m_read_p.load(std::memory_order_acquire);
+        auto r = m_read_p.load(std::memory_order_relaxed);
         if (r + read == m_buffer.size()) {
             m_read_p.store(0, std::memory_order_release);
         } else {

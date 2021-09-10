@@ -64,8 +64,8 @@ int main()
                 auto wb = buffer.write_buffer();
                 if (wb.empty()) {
                     // full buffer
+                    log::debug("shell read: buffer is full");
                     window.wakeup();
-                    //log_debug("full buffer");
                     std::this_thread::sleep_for(50us);
                 } else {
                     auto nread = shell.read(wb.data(), wb.size());
