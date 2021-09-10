@@ -15,7 +15,7 @@
 
 #include "Terminal.h"
 #include "Shell.h"
-#include "SyncedBuffer.h"
+#include "CircularBuffer.h"
 #include <xci/widgets/Theme.h>
 #include <xci/widgets/FpsDisplay.h>
 #include <xci/graphics/Window.h>
@@ -50,7 +50,7 @@ int main()
         return EXIT_FAILURE;
 
     Dispatch dispatch;
-    SyncedBuffer buffer;
+    CircularBuffer<640 * 1024> buffer;
     Shell shell;
     Terminal terminal (theme, shell);
 
@@ -62,16 +62,15 @@ int main()
         switch (event) {
             case IOWatch::Event::Read: {
                 auto wb = buffer.write_buffer();
-                if (wb.size == 0) {
+                if (wb.empty()) {
                     // full buffer
                     window.wakeup();
                     //log_debug("full buffer");
                     std::this_thread::sleep_for(50us);
                 } else {
-                    auto nread = shell.read(wb.data, wb.size);
+                    auto nread = shell.read(wb.data(), wb.size());
                     if (nread > 0) {
-                        wb.size = nread;
-                        buffer.bytes_written(wb);
+                        buffer.bytes_written(size_t(nread));
                         window.wakeup();
 #ifdef __APPLE__
                         // MacOS needs this to give the rendering thread some time slots
@@ -99,9 +98,9 @@ int main()
         [&terminal, &buffer, &shell]
         (View& v, std::chrono::nanoseconds elapsed) {
             auto rb = buffer.read_buffer();
-            if (rb.size > 0) {
-                terminal.decode_input({rb.data, rb.size});
-                buffer.bytes_read(rb);
+            if (!rb.empty()) {
+                terminal.decode_input(rb);
+                buffer.bytes_read(rb.size());
                 v.refresh();
             }
             if (shell.is_closed()) {

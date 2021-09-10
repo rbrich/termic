@@ -1,0 +1,94 @@
+// CircularBuffer.h created on 2019-04-07 as part of xcikit project
+// https://github.com/rbrich/xcikit
+//
+// Copyright 2019–2021 Radek Brich
+// Licensed under the Apache License, Version 2.0 (see LICENSE file)
+
+#ifndef XCITERM_CIRCULARBUFFER_H
+#define XCITERM_CIRCULARBUFFER_H
+
+#include <atomic>
+#include <array>
+#include <string_view>
+#include <span>
+#include <cstddef>  // size_t
+
+namespace xci::term {
+
+
+/// Synchronized circular buffer - single writer, single reader
+///
+/// read_p (R) is read pointer (not real pointer, just a cursor in the buffer)
+/// write_p (W) is write pointer
+/// size (S) is total size of the buffer
+///
+/// Possible states:
+/// 1. R == W        -- empty buffer (nothing to read)
+/// 2. R < W         -- (W - R) bytes available for reading
+/// 3. R > W+1       -- W cycled, (S - R + W) bytes available for reading
+/// 4. R == W+1      -- full buffer (nowhere to write)
+///
+/// In states 1. and 2. (R <= W) the writer can send (S - W) bytes
+/// In states 3. and 4. (R > W) the writer can send (R - W - 1) bytes
+///
+/// Whenever the writer fills the buffer to the end, W is cycled to 0.
+/// Whenever the reader reads to the end of buffer (state 3.), R is cycled to 0.
+
+template <size_t Size>
+class CircularBuffer {
+public:
+
+    // writer - moves write_p, checks read_p
+
+    std::span<char> write_buffer() {
+        // We're the only writer - W can't change, R may grow or cycle
+        auto w = m_write_p.load(std::memory_order_acquire);
+        auto r = m_read_p.load(std::memory_order_acquire);
+        if (r <= w) {
+            return {m_buffer.data() + w, m_buffer.size() - w};
+        } else {  // r > w
+            return {m_buffer.data() + w, size_t(r - w - 1)};
+        }
+    }
+
+    void bytes_written(size_t written) {
+        auto w = m_write_p.load(std::memory_order_acquire);
+        if (w + written == m_buffer.size()) {
+            m_write_p.store(0, std::memory_order_release);
+        } else {
+            m_write_p.store(w + written, std::memory_order_release);
+        }
+    }
+
+    // reader - moves read_p, checks write_p
+
+    std::string_view read_buffer() const {
+        // We're the only reader - R can't change, W may grow or cycle
+        auto w = m_write_p.load(std::memory_order_acquire);
+        auto r = m_read_p.load(std::memory_order_acquire);
+        if (r <= w) {
+            return {m_buffer.data() + r, size_t(w - r)};
+        } else {  // r > w
+            return {m_buffer.data() + r, m_buffer.size() - r};
+        }
+    }
+
+    void bytes_read(size_t read) {
+        auto r = m_read_p.load(std::memory_order_acquire);
+        if (r + read == m_buffer.size()) {
+            m_read_p.store(0, std::memory_order_release);
+        } else {
+            m_read_p.store(r + read, std::memory_order_release);
+        }
+    }
+
+private:
+    std::array<char, Size> m_buffer;
+    std::atomic<unsigned> m_write_p {0};
+    std::atomic<unsigned> m_read_p {0};
+};
+
+
+} // namespace xci::term
+
+#endif // include guard
