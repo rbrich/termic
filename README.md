@@ -11,6 +11,7 @@ Other terminals:
 
 - [xterm](https://invisible-island.net/xterm/) - emulates almost everything
 - [Terminology](https://github.com/billiob/terminology) - fancy features
+- [Alacritty](https://github.com/alacritty/alacritty) - says it's fast
 
 CSI u
 

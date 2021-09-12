@@ -8,6 +8,7 @@
 #define XCITERM_CIRCULARBUFFER_H
 
 #include <atomic>
+#include <semaphore>
 #include <array>
 #include <string_view>
 #include <span>
@@ -47,6 +48,8 @@ public:
 
     // writer - moves write_p, checks read_p
 
+    /// Get the part of buffer ready for writing.
+    /// \returns Empty span when the buffer is full.
     std::span<char> write_buffer() {
         // We're the only writer - W can't change, R may grow or cycle
         auto r = m_read_p.load(std::memory_order_acquire);
@@ -56,6 +59,25 @@ public:
         } else {  // r > w
             return {m_buffer.data() + w, size_t(r - w - 1)};
         }
+    }
+
+    /// Get the part of buffer ready for writing.
+    /// Block if the buffer is full.
+    std::span<char> acquire_write_buffer() {
+        auto wbuf = write_buffer();
+        if (wbuf.empty()) {
+            // Buffer is full, nowhere to write
+            // The race condition is not a problem:
+            // * writer stores full=true
+            // * reader reads it and resets it
+            // * reader releases full_sem - counter -> 1
+            // * writer acquires full_sem - doesn't block, counter -> 0
+            // Normally, writer blocks on acquire until reader releases full_sem.
+            m_full.store(true);
+            m_full_sem.acquire();
+            return write_buffer();
+        }
+        return wbuf;
     }
 
     void bytes_written(size_t written) {
@@ -87,12 +109,17 @@ public:
         } else {
             m_read_p.store(r + read, std::memory_order_release);
         }
+        auto was_full = m_full.exchange(false);
+        if (was_full)
+            m_full_sem.release();
     }
 
 private:
     std::array<char, Size> m_buffer;
     std::atomic<unsigned> m_write_p {0};
     std::atomic<unsigned> m_read_p {0};
+    std::binary_semaphore m_full_sem {0};
+    std::atomic_bool m_full {false};
 };
 
 
