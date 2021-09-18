@@ -16,10 +16,9 @@
 #include "Terminal.h"
 #include "utility.h"
 #include <xci/core/log.h>
-#include <xci/core/string.h>
+#include <xci/core/string.h>  // NOLINT(modernize-deprecated-headers) - FP
 #include <fmt/ostream.h>
 #include <iostream>
-#include <sstream>
 #include <cstdlib>
 
 namespace xci::term {
@@ -51,7 +50,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
 
     if (ev.mod == ModKey::None()) {
         switch (ev.key) {
-            case Key::Enter: seq = "\n"; break;
+            case Key::Enter:
             case Key::KeypadEnter: seq = "\n"; break;
             case Key::Backspace: seq = "\b"; break;
             case Key::Tab: seq = "\t"; break;
@@ -448,6 +447,7 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
                     log::debug("Unknown SM param: {}", p);
                     break;
             }
+            break;
         }
         case 'l': {  // RM - Reset Mode
             unsigned p = 0;
@@ -460,6 +460,7 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
                     log::debug("Unknown RM param: {}", p);
                     break;
             }
+            break;
         }
         case 'm':  // SGR - Select Graphic Rendition
             decode_sgr(params);
