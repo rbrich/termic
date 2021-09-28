@@ -50,6 +50,7 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
 
     if (ev.mod == ModKey::None()) {
         switch (ev.key) {
+            case Key::Escape: seq = "\033"; break;
             case Key::Enter:
             case Key::KeypadEnter: seq = "\n"; break;
             case Key::Backspace: seq = "\b"; break;
@@ -103,7 +104,11 @@ bool Terminal::key_event(View &view, const KeyEvent &ev)
 
     if (ev.mod == ModKey::Shift()) {
         switch (ev.key) {
-            case Key::F10:
+            case Key::F1:
+                // Write contents of first line to stdout (debugging)
+                std::cout << escape(line(0).content()) << std::endl;
+                return true;
+            case Key::F2:
                 // Write contents of current line to stdout (debugging)
                 std::cout << escape(current_line().content()) << std::endl;
                 return true;
@@ -497,6 +502,7 @@ void Terminal::decode_sgr(std::string_view params)
             set_mode(Mode::Normal);
         } else if (p == 1) {
             set_font_style(FontStyle::Bold);
+            set_mode(Mode::Bright);
         } else if (p >= 30 && p <= 37) {
             set_fg(Color4bit(p - 30));
         } else if (p == 38 && more_params) {

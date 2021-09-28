@@ -114,6 +114,11 @@ int main()
     root.add(fps_display);
     root.set_focus(terminal);
 
+    window.set_key_callback([&](View& view, KeyEvent ev) {
+        if (ev.action == Action::Press && ev.mod == ModKey::Shift() && ev.key == Key::F11)
+            window.toggle_fullscreen();
+    });
+
     Bind bind(window, root);
     window.set_refresh_mode(RefreshMode::OnDemand);
     window.set_view_mode(ViewOrigin::TopLeft, ViewScale::FixedScreenPixels);
