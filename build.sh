@@ -13,9 +13,9 @@ CMAKE_ARGS=(-G Ninja
     -DXCI_DATA=OFF -DXCI_SCRIPT=OFF -DXCI_BUILD_TOOLS=OFF -DXCI_BUILD_EXAMPLES=OFF -DXCI_BUILD_BENCHMARKS=OFF
     -DXCI_INSTALL_DEVEL=OFF)
 CONAN_ARGS=()
-CONAN_PROFILE="default"
+CONAN_PROFILE=${CONAN_DEFAULT_PROFILE_PATH:-default}
 
-run() { echo "➤➤➤ $@"; "$@"; }
+run() { echo "➤➤➤ $*"; "$@"; }
 
 print_usage()
 {

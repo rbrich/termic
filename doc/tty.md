@@ -19,4 +19,10 @@ and watch the size changes:
 References
 ----------
 
-- [The TTY demystified](http://linusakesson.net/programming/tty/)
+* [The TTY demystified][tty-demystified]
+* [POSIX terminal interface][posix]
+* [termios(4)][termios]
+
+[tty-demystified]: http://linusakesson.net/programming/tty/
+[posix]: https://en.wikipedia.org/wiki/POSIX_terminal_interface
+[termios]: https://linux.die.net/man/4/termios

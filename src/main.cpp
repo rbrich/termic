@@ -43,7 +43,7 @@ int main()
 
     Renderer renderer {vfs};
     Window window {renderer};
-    window.create({800, 600}, "XCI Term");
+    window.create({800, 600}, "Termic");
 
     Theme theme(renderer);
     if (!theme.load_default())
