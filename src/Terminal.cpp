@@ -331,11 +331,12 @@ void Terminal::decode_ctlseq(char c, std::string_view params)
         case 'G': {  // CHA - Cursor Horizontal Absolute
             unsigned column = 1;
             cseq_parse_params("CHA", params, column);
-            set_cursor_pos({column, cursor_pos().y});
+            set_cursor_x(column - 1);
             break;
         }
         case 'H': {  // CUP - Cursor Position
-            unsigned row = 1, column = 1;
+            unsigned row = 1;
+            unsigned column = 1;
             cseq_parse_params("CUP", params, row, column);
             set_cursor_pos({column - 1, row - 1});
             break;
