@@ -1,7 +1,7 @@
-XCI Term Control Sequences
-==========================
+Termic Control Sequences
+========================
 
-This is documentation of control sequences recognized by XCI term.
+This is documentation of control sequences recognized by Termic.
 
 `SGR 38 ; 2 ; <r> ; <g> ; <b> m`\
 set foreground [24-bit RGB color][truecolor] (each element 0..255)

@@ -21,14 +21,14 @@ find_package(Catch2)
 
 include(XciBuildOptions)
 
-add_executable(xciterm
+add_executable(termic
     src/main.cpp
     src/Pty.cpp
     src/Shell.cpp
     src/Terminal.cpp
     src/utility.cpp
     )
-target_link_libraries(xciterm xcikit::xci-widgets)
+target_link_libraries(termic xcikit::xci-widgets)
 
 if (Catch2_FOUND)
     enable_testing()

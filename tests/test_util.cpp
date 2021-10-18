@@ -1,4 +1,7 @@
-// test_util.cc created on 2018-07-30, part of XCI term
+// test_util.cc created on 2018-07-30
+// This file is part of Termic project <https://github.com/rbrich/termic>
+// Copyright 2018–2021 Radek Brich
+// Licensed under the Apache License, Version 2.0 (see LICENSE file)
 
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
